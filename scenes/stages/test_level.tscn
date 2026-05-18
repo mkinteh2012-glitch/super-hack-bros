@@ -1,0 +1,52 @@
+[gd_scene format=3 uid="uid://bbuemveeeg1lx"]
+
+[ext_resource type="PackedScene" uid="uid://bk4ruuv3s4g5n" path="res://scenes/characters/orpheus.tscn" id="1_4d6s0"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_2qkqs"]
+size = Vector2(603, 12)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_4d6s0"]
+size = Vector2(65, 58.75)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_e6enr"]
+size = Vector2(62, 54)
+
+[sub_resource type="SegmentShape2D" id="SegmentShape2D_4d6s0"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_1qhax"]
+size = Vector2(116.5, 111)
+
+[node name="TestLevel" type="Node2D" unique_id=76665129]
+
+[node name="Floor" type="StaticBody2D" parent="." unique_id=1950436958]
+position = Vector2(0, 127)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Floor" unique_id=360539136]
+position = Vector2(599.5, 280)
+shape = SubResource("RectangleShape2D_2qkqs")
+
+[node name="CollisionShape2D2" type="CollisionShape2D" parent="Floor" unique_id=2098256508]
+position = Vector2(562, 252.375)
+shape = SubResource("RectangleShape2D_4d6s0")
+
+[node name="CollisionShape2D3" type="CollisionShape2D" parent="Floor" unique_id=1603186132]
+position = Vector2(374, 263)
+shape = SubResource("RectangleShape2D_e6enr")
+
+[node name="CollisionShape2D4" type="CollisionShape2D" parent="Floor" unique_id=1460249107]
+shape = SubResource("SegmentShape2D_4d6s0")
+
+[node name="CollisionShape2D5" type="CollisionShape2D" parent="Floor" unique_id=861989336]
+position = Vector2(715, 227)
+shape = SubResource("RectangleShape2D_1qhax")
+
+[node name="Orpheus" parent="." unique_id=140856988 instance=ExtResource("1_4d6s0")]
+position = Vector2(354, 175)
+
+[node name="Orpheus2" parent="." unique_id=1633172297 instance=ExtResource("1_4d6s0")]
+position = Vector2(803, 143)
+player_id = 2
+
+[node name="Camera2D" type="Camera2D" parent="." unique_id=1012049562]
+position = Vector2(596, 248)
+zoom = Vector2(2, 2)
