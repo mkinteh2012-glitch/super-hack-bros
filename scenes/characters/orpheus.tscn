@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://bw2memav71n20" path="res://scripts/player/orpheus.gd" id="1_4x3ae"]
 [ext_resource type="Texture2D" uid="uid://ycysmgp3l3q3" path="res://assets/sprites/OrpheusIdle+Defualt.png" id="2_bm7r2"]
 [ext_resource type="Texture2D" uid="uid://cr6ygqxsnrfns" path="res://assets/sprites/Orph Punch.png" id="3_qpsir"]
+[ext_resource type="Texture2D" uid="uid://chyt05jx1iij4" path="res://assets/sprites/Orph Head Smash.png" id="4_j63j0"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_j63j0"]
 atlas = ExtResource("2_bm7r2")
@@ -43,6 +44,22 @@ region = Rect2(256, 0, 64, 64)
 [sub_resource type="AtlasTexture" id="AtlasTexture_7uxe6"]
 atlas = ExtResource("3_qpsir")
 region = Rect2(320, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_c5cre"]
+atlas = ExtResource("4_j63j0")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ipq4a"]
+atlas = ExtResource("4_j63j0")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ymn45"]
+atlas = ExtResource("4_j63j0")
+region = Rect2(128, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_2sygj"]
+atlas = ExtResource("4_j63j0")
+region = Rect2(192, 0, 64, 64)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_aqdih"]
 animations = [{
@@ -90,6 +107,23 @@ animations = [{
 "loop": false,
 "name": &"punch",
 "speed": 16.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_c5cre")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ipq4a")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ymn45")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_2sygj")
+}],
+"loop": true,
+"name": &"skull_bash",
+"speed": 5.0
 }]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_qpsir"]
@@ -102,9 +136,9 @@ script = ExtResource("1_4x3ae")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=964887262]
 sprite_frames = SubResource("SpriteFrames_aqdih")
-animation = &"punch"
-frame = 5
-frame_progress = 1.0
+animation = &"skull_bash"
+frame = 3
+frame_progress = 0.30549648
 
 [node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="." unique_id=1515111420]
 polygon = PackedVector2Array(-6, -24, -6, -27, 9, -29, 11, -28, 14, -25, 16, -22, 16, -19, 9, -14, 7, -13, 9, 3, 12, 13, 14, 24, 12, 26, 13, 28, 13, 31, 9, 30, 8, 29, 7, 22, 5, 20, -1, 20, -4, 25, -5, 30, -11, 30, -12, 28, -13, 24, -14, 19, -14, -2, -13, -4, -13, -7, -12, -7, -12, -19, -13, -21, -10, -23, -8, -24)
@@ -124,3 +158,10 @@ collision_mask = 2
 
 [node name="Hurtbox" type="CollisionPolygon2D" parent="Hurtbox" unique_id=895104022]
 polygon = PackedVector2Array(-6, -24, -6, -27, 9, -29, 11, -28, 14, -25, 16, -22, 16, -19, 9, -14, 7, -13, 9, 3, 12, 13, 12, 24, 13, 28, 15, 29, 9, 30, 8, 29, 7, 22, 5, 20, -1, 20, -4, 25, -5, 30, -11, 30, -12, 28, -13, 24, -19, 22, -24, 19, -27, 17, -30, 12, -28, 13, -22, 16, -14, 16, -14, -2, -13, -4, -13, -7, -12, -7, -12, -19, -13, -21, -10, -23, -8, -24)
+
+[node name="SkullBox" type="Area2D" parent="." unique_id=874564520]
+collision_layer = 3
+collision_mask = 3
+
+[node name="SkullBox" type="CollisionPolygon2D" parent="SkullBox" unique_id=1621184829]
+polygon = PackedVector2Array(-10, -25, -7, -29, 10, -31, 14, -29, 15, -25, -13, -22)
