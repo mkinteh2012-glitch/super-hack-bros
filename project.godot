@@ -14,6 +14,10 @@ config/name="Super Hack Bros"
 run/main_scene="uid://bbuemveeeg1lx"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 
+[autoload]
+
+SignalBus="*uid://dvqqt46lxojym"
+
 [display]
 
 window/stretch/mode="canvas_items"

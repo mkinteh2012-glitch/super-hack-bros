@@ -129,6 +129,9 @@ animations = [{
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_qpsir"]
 size = Vector2(22, 9)
 
+[sub_resource type="Gradient" id="Gradient_r53g6"]
+colors = PackedColorArray(0.8810723, 0.8810722, 0.8810722, 1, 0.89411765, 0.89411765, 0.89411765, 0)
+
 [node name="Orpheus" type="CharacterBody2D" unique_id=140856988]
 collision_layer = 2
 collision_mask = 3
@@ -165,3 +168,12 @@ collision_mask = 3
 
 [node name="SkullBox" type="CollisionPolygon2D" parent="SkullBox" unique_id=1621184829]
 polygon = PackedVector2Array(-10, -25, -7, -29, 10, -31, 14, -29, 15, -25, -13, -22)
+
+[node name="LaunchTrail" type="CPUParticles2D" parent="." unique_id=1607721241]
+z_index = 2
+emitting = false
+amount = 60
+gravity = Vector2(0, 0)
+scale_amount_min = 7.0
+scale_amount_max = 9.0
+color_ramp = SubResource("Gradient_r53g6")

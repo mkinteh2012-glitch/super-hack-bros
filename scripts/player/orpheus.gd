@@ -4,7 +4,7 @@ extends CharacterBody2D
 @onready var sprite = $AnimatedSprite2D
 @onready var hitbox = $CollisionPolygon2D
 @onready var hurtbox = $Hurtbox 
-
+@onready var launch_trail = $LaunchTrail
 # Punch Nodes
 @onready var punch_box = $PunchBox
 @onready var punch_hitbox = $PunchBox/PunchHitbox
@@ -16,9 +16,9 @@ extends CharacterBody2D
 @export_enum("Player 1:1", "Player 2:2") var player_id: int = 1
 
 # --- Fast Movement Properties ---
-@export var speed: float = 230.0          
-@export var acceleration: float = 300.0    
-@export var friction: float = 1600.0       
+@export var speed: float = 210.0          
+@export var acceleration: float = 200.0    
+@export var friction: float = 5600.0       
 
 # --- Physics Constants ---
 @export var Jump_Velocity: float = -650.0
@@ -48,13 +48,18 @@ var input_up: String = ""
 var input_attack: String = ""
 var input_special: String = "" 
 
+# --- New Hitstun & DI Variables ---
+var hitstun_frames: int = 0
+const DI_STRENGTH: float = 35.0 
+
 func _ready():
 	sprite.animation_finished.connect(_on_animation_finished)
 	sprite.frame_changed.connect(_on_sprite_frame_changed)
 	
 	if punch_box: punch_box.area_entered.connect(_on_punch_box_area_entered)
 	if skull_box: skull_box.area_entered.connect(_on_skull_box_area_entered)
-
+	launch_trail.scale_amount_min = 0.3
+	
 	# --- Dynamic Input Strings Configuration ---
 	input_left = "p%d_left" % player_id
 	input_right = "p%d_right" % player_id
@@ -70,7 +75,43 @@ func _ready():
 func _physics_process(delta):
 	queue_redraw()
 
-	# --- Gravity Processing ---
+	# --- NEW: Hitstun Processing & DI ---
+	if hitstun_frames > 0:
+		hitstun_frames -= 1
+		print(velocity.length())
+		if launch_trail and velocity.length() > 500.0:
+			launch_trail.emitting = true
+		# 1. Apply Normal Gravity while in hitstun
+		if not is_on_floor():
+			if velocity.y > 0:
+				velocity.y += gravity * fall_gravity_multiplier * delta
+			else:
+				velocity.y += gravity * base_gravity_multiplier * delta
+		
+		# 2. Directional Influence (DI)
+		# Reads player input during hitstun to let them alter their launch angle
+		var di_direction = Input.get_axis(input_left, input_right)
+		if di_direction != 0:
+			velocity.x += di_direction * DI_STRENGTH * delta * 60.0
+		
+		# 3. Apply drift/knockback decay even during hitstun
+		velocity.x = move_toward(velocity.x, 0.0, knockback_resistance * delta)
+		
+		# Move and update animations, then exit early to skip normal inputs!
+		move_and_slide()
+		queue_animations(di_direction)
+		return
+
+	# If hitstun frames hit 0 but they are still technically flying from knockback
+	if is_in_knockback and hitstun_frames <= 0:
+		velocity.x = move_toward(velocity.x, 0.0, knockback_resistance * delta)
+		if is_on_floor() and abs(velocity.x) < 30.0:
+			is_in_knockback = false
+			# 💨 TRAIL LOGIC: Turn off smoke when they regain control or land safely
+			if launch_trail:
+				launch_trail.emitting = false
+
+	# --- Gravity Processing (Normal State) ---
 	if not is_on_floor():
 		if velocity.y > 0:
 			velocity.y += gravity * fall_gravity_multiplier * delta
@@ -95,6 +136,7 @@ func _physics_process(delta):
 	
 	var direction = Input.get_axis(input_left, input_right)
 
+	# --- Normal Ground/Air Horizontal Movement ---
 	if not is_attacking and not is_in_knockback:
 		if direction != 0:
 			velocity.x = move_toward(velocity.x, direction * speed, acceleration * delta)
@@ -103,11 +145,8 @@ func _physics_process(delta):
 		else:
 			velocity.x = move_toward(velocity.x, 0.0, friction * delta)
 	
-	elif is_in_knockback:
-		velocity.x = move_toward(velocity.x, 0.0, knockback_resistance * delta)
-		if is_on_floor() and abs(velocity.x) < 30.0:
-			is_in_knockback = false
-	else:
+	# Attack-specific friction logic
+	if is_attacking:
 		if is_charging_bash:
 			velocity.x = move_toward(velocity.x, 0.0, friction * 0.2 * delta)
 		elif is_skull_bashing:
@@ -117,7 +156,7 @@ func _physics_process(delta):
 		
 	move_and_slide()
 	queue_animations(direction)
-
+	
 # --- Attack Activation States ---
 
 func trigger_combo_strike():
@@ -221,49 +260,80 @@ func _on_punch_box_area_entered(area):
 		if opponent != self and opponent.has_method("universal_take_damage"):
 			var knockback_dir = -1.0 if sprite.flip_h else 1.0
 			var random_damage = randi_range(3, 7)
-			opponent.universal_take_damage(random_damage, knockback_dir, 160.0, -140.0, 1.2)
+			
+			# 🥊 PUNCH: 0.4 Hitstun Multiplier
+			# Low hitstun lets you link quick follow-up moves together at low percentages!
+			opponent.universal_take_damage(random_damage, knockback_dir, 160.0, -140.0, 1.2, 0.4)
 
 func _on_skull_box_area_entered(area):
 	if area.name == "Hurtbox":
 		var opponent = area.get_parent()
 		if opponent != self and opponent.has_method("universal_take_damage"):
 			var knockback_dir = -1.0 if sprite.flip_h else 1.0
-			opponent.universal_take_damage(14.0, knockback_dir, 0.0, -380.0, 4.0)
+			
+			# 💀 SKULL BASH: 1.2 Hitstun Multiplier
+			# Massive vertical launch (0.0 horizontal, -380.0 vertical) paired with a high 
+			# hitstun multiplier ensures they are frozen while rocketing toward the top blast zone!
+			opponent.universal_take_damage(10.0, knockback_dir, 0.0, -270.0, 4.0, 1.1)
+			
 			if skull_hitbox:
 				skull_hitbox.set_deferred("disabled", true)
-
-# --- Universal Receiver Damage Function ---
-func universal_take_damage(damage: float, hit_dir: float, base_kb_x: float, base_kb_y: float, kb_scaling: float):
+				
+				
+func universal_take_damage(damage: float, hit_dir: float, base_kb_x: float, base_kb_y: float, kb_scaling: float, hitstun_mult: float = 1.0):
 	damage_percent += damage
 	print("[HIT] Player ", player_id, " took ", damage, "%. Total: ", damage_percent, "%")
 	
+	var heavy_strike_check: bool = (abs(base_kb_y) > 250.0 or damage > 10.0)
+	SignalBus.global_player_damaged.emit(player_id, damage_percent, heavy_strike_check)
+	
 	if hit_dir == 0: hit_dir = 1.0
 	
+	# Calculate structural multiplier based on current health percentage
 	var launch_chance = clamp(damage_percent / 150.0, 0.0, 0.95)
 	var random_roll = randf()
-	
 	var final_x = 0.0
 	var final_y = 0.0
 	
-	if random_roll < launch_chance:
-		print("[COMBAT] CRITICAL LAUNCH TRIGGERED!")
-		final_x = (base_kb_x + (damage_percent * kb_scaling)) * hit_dir * 1.3
-		final_y = (base_kb_y - (damage_percent * kb_scaling)) * 1.3
+	# 🎯 THE FIX: If an attack passes absolutely NO base forces (like the 1% hazard zone),
+	# do not calculate random launches or overwrite velocities. Just preserve current speeds.
+	if base_kb_x == 0.0 and base_kb_y == 0.0:
+		final_x = velocity.x
+		final_y = velocity.y
+		hitstun_frames = 0 # No hitstun stutter for passive ticking hazards
+	
+	# Otherwise, process standard player attacks normally
+	elif random_roll < launch_chance:
+		final_x = (base_kb_x + (damage_percent * (kb_scaling * 0.4))) * hit_dir * 0.8
+		final_y = (base_kb_y - (damage_percent * (kb_scaling * 1.4))) * 1.5
+		
+		# Recalculate hitstun frames for normal scaling hits
+		var calculated_frames = (6 + int(damage_percent * 0.12)) * hitstun_mult
+		hitstun_frames = clamp(int(calculated_frames), 6, 30) 
 	else:
-		print("[COMBAT] Standard Flinch.")
-		final_x = base_kb_x * hit_dir
-		final_y = base_kb_y * 0.75
+		final_x = base_kb_x * hit_dir * 0.6
+		final_y = base_kb_y * 1.2
+		
+		var calculated_frames = (6 + int(damage_percent * 0.12)) * hitstun_mult
+		hitstun_frames = clamp(int(calculated_frames), 6, 30) 
 
 	velocity = Vector2(final_x, final_y)
-	is_in_knockback = true
-	is_attacking = false 
-	is_skull_bashing = false
-	is_charging_bash = false
-	holding_last_frame = false
 	
-	if punch_hitbox: punch_hitbox.set_deferred("disabled", true)
-	if skull_hitbox: skull_hitbox.set_deferred("disabled", true)
-
+	# Only set knockback state true if it was an actual physical hit
+	if base_kb_x != 0.0 or base_kb_y != 0.0:
+		is_in_knockback = true
+		is_attacking = false 
+		is_skull_bashing = false
+		is_charging_bash = false
+		holding_last_frame = false
+		
+		print(velocity.length())
+		if launch_trail and velocity.length() > 500.0:
+			launch_trail.emitting = true
+		
+		if punch_hitbox: punch_hitbox.set_deferred("disabled", true)
+		if skull_hitbox: skull_hitbox.set_deferred("disabled", true)
+	
 # --- Helpers ---
 func _flip_hitbox_directions(is_flipped: bool):
 	var flip_scale = -1.0 if is_flipped else 1.0

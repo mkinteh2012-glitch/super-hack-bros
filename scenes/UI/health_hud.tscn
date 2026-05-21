@@ -1,0 +1,41 @@
+[gd_scene format=3 uid="uid://soq6h0jdoiws"]
+
+[ext_resource type="Script" uid="uid://ctv4ays672nx4" path="res://scripts/global/health_hud.gd" id="1_cuxd6"]
+[ext_resource type="FontFile" uid="uid://ba8dsrils7te1" path="res://assets/fonts/PixelifySans-VariableFont_wght.ttf" id="2_yffg1"]
+
+[node name="HealthHUD" type="Control" unique_id=257772539]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_cuxd6")
+
+[node name="P1" type="Control" parent="." unique_id=36777104]
+anchors_preset = 0
+offset_left = 129.0
+offset_top = 505.0
+offset_right = 220.0
+offset_bottom = 545.0
+
+[node name="PercentLabel" type="Label" parent="P1" unique_id=1736082339]
+layout_mode = 0
+offset_left = 129.0
+offset_right = 176.0
+offset_bottom = 39.0
+theme_override_fonts/font = ExtResource("2_yffg1")
+theme_override_font_sizes/font_size = 32
+text = "x%"
+
+[node name="P2" type="Control" parent="." unique_id=1590351889]
+anchors_preset = 0
+offset_left = 661.0
+offset_top = 505.0
+offset_right = 752.0
+offset_bottom = 545.0
+
+[node name="PercentLabel" type="Label" parent="P2" unique_id=298426872]
+layout_mode = 0
+offset_left = 112.0
+offset_right = 159.0
+offset_bottom = 39.0
+theme_override_fonts/font = ExtResource("2_yffg1")
+theme_override_font_sizes/font_size = 32
+text = "x%"
