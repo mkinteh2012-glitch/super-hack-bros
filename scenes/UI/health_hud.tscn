@@ -3,7 +3,13 @@
 [ext_resource type="Script" uid="uid://ctv4ays672nx4" path="res://scripts/global/health_hud.gd" id="1_cuxd6"]
 [ext_resource type="FontFile" uid="uid://ba8dsrils7te1" path="res://assets/fonts/PixelifySans-VariableFont_wght.ttf" id="2_yffg1"]
 
-[node name="HealthHUD" type="Control" unique_id=257772539]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_yffg1"]
+bg_color = Color(0.003921569, 0.003921569, 0.003921569, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_8wtww"]
+bg_color = Color(0.9, 0.9, 0.9, 1)
+
+[node name="LevelHUD" type="Control" unique_id=257772539]
 layout_mode = 3
 anchors_preset = 0
 script = ExtResource("1_cuxd6")
@@ -24,6 +30,26 @@ theme_override_fonts/font = ExtResource("2_yffg1")
 theme_override_font_sizes/font_size = 32
 text = "x%"
 
+[node name="ProgressBar" type="ProgressBar" parent="P1" unique_id=189107200]
+layout_mode = 0
+offset_left = 175.0
+offset_top = 47.0
+offset_right = 179.0
+offset_bottom = 74.0
+rotation = 1.5707964
+scale = Vector2(2, 2)
+theme_override_styles/background = SubResource("StyleBoxFlat_yffg1")
+theme_override_styles/fill = SubResource("StyleBoxFlat_8wtww")
+fill_mode = 3
+show_percentage = false
+
+[node name="StockIcons" type="HBoxContainer" parent="P1" unique_id=334553167]
+layout_mode = 0
+offset_left = 108.0
+offset_top = 41.0
+offset_right = 148.0
+offset_bottom = 81.0
+
 [node name="P2" type="Control" parent="." unique_id=1590351889]
 anchors_preset = 0
 offset_left = 661.0
@@ -39,3 +65,23 @@ offset_bottom = 39.0
 theme_override_fonts/font = ExtResource("2_yffg1")
 theme_override_font_sizes/font_size = 32
 text = "x%"
+
+[node name="ProgressBar" type="ProgressBar" parent="P2" unique_id=358431740]
+layout_mode = 0
+offset_left = 163.0
+offset_top = 47.0
+offset_right = 167.0
+offset_bottom = 74.0
+rotation = 1.5707964
+scale = Vector2(2, 2)
+theme_override_styles/background = SubResource("StyleBoxFlat_yffg1")
+theme_override_styles/fill = SubResource("StyleBoxFlat_8wtww")
+fill_mode = 3
+show_percentage = false
+
+[node name="StockIcons" type="HBoxContainer" parent="P2" unique_id=1363714783]
+layout_mode = 0
+offset_left = 100.0
+offset_top = 41.0
+offset_right = 140.0
+offset_bottom = 81.0

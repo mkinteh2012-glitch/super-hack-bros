@@ -1,0 +1,23 @@
+[gd_scene format=3 uid="uid://bvmvjomnxeh8d"]
+
+[ext_resource type="Script" uid="uid://dt7711ejjbnq4" path="res://scripts/shaders/shadow.gd" id="1_0rvn4"]
+
+[sub_resource type="Gradient" id="Gradient_jqplm"]
+colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_bs2fw"]
+gradient = SubResource("Gradient_jqplm")
+use_hdr = true
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(1, 0.5)
+
+[node name="ShadowSystem" type="Node2D" unique_id=1014011544]
+script = ExtResource("1_0rvn4")
+
+[node name="RayCast2D" type="RayCast2D" parent="." unique_id=1596554684]
+target_position = Vector2(0, 1000)
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1657078575]
+modulate = Color(0.20055568, 0.22608095, 0.20624468, 1)
+texture = SubResource("GradientTexture2D_bs2fw")

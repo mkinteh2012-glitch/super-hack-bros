@@ -1,44 +1,80 @@
 extends CharacterBody2D
 
-# --- Node References ---
+# --- Nodes and variables ---
 @onready var sprite = $AnimatedSprite2D
 @onready var hitbox = $CollisionPolygon2D
 @onready var hurtbox = $Hurtbox 
 @onready var launch_trail = $LaunchTrail
-# Punch Nodes
+
+var max_super_meter: float = 100.0
+var current_super_meter: float = 100.0
+var super_meter_ui: ProgressBar = null
+
 @onready var punch_box = $PunchBox
 @onready var punch_hitbox = $PunchBox/PunchHitbox
 
-# Skull Bash Nodes
 @onready var skull_box = $SkullBox
 @onready var skull_hitbox = $SkullBox/SkullBox 
 
 @export_enum("Player 1:1", "Player 2:2") var player_id: int = 1
 
-# --- Fast Movement Properties ---
+@onready var orph_board: Sprite2D = $OrphBoard
+@onready var board_box = $Area2D/BoardBox
+
+@onready var marker_1: Marker2D = $BoardTrail
+@onready var marker_2: Marker2D = $BoardTrail2
+
+@onready var board_trail: CPUParticles2D = $Trail
+@onready var board_trail_2: CPUParticles2D = $Trail2
+
 @export var speed: float = 210.0          
 @export var acceleration: float = 200.0    
-@export var friction: float = 5600.0       
+@export var friction: float = 900.0       
 
-# --- Physics Constants ---
-@export var Jump_Velocity: float = -650.0
-@export var base_gravity_multiplier: float = 2.0
-@export var fall_gravity_multiplier: float = 3.5
+@export var Jump_Velocity: float = -550.0
+@export var base_gravity_multiplier: float = 1.5
+@export var fall_gravity_multiplier: float = 1.5
 @export var knockback_resistance: float = 650.0 
-@export var lunge_speed: float = 180.0     
+@export var lunge_speed: float = 230.0    
 
-# --- Skull Bash Custom Launch Velocity ---
+# --- 🛡️ SHIELD SYSTEM SETTINGS ---
+@onready var shield_sprite: Sprite2D = $ShieldBox/Sprite2D
+@onready var shield_box: Area2D = $ShieldBox
+@onready var shield_collision: CollisionShape2D = $ShieldBox/CollisionShape2D
+
+@export var max_shield_health: float = 100.0
+var current_shield_health: float = 100.0
+
+@export var shield_decay_rate: float = 25.0  # Lost per second while holding button
+@export var shield_regen_rate: float = 15.0  # Recovered per second when dropped
+var is_shielding: bool = false
+@export var base_shield_scale: float = 2.4
+
 @export var skull_bash_velocity_y: float = -850.0 
+const LAG_SPIKE_SCENE = preload("res://scenes/characters/CharacterAssets/lag_spike.tscn")
 
-# --- Health Pool ---
+@export var max_air_skull_bashes: int = 3
+var air_skull_bash_count: int = 0         
+
+# 🏃‍♂️ Base stats
+var base_move_speed: float = 400.0
+var move_speed: float = 400.0 
+
+# ⚔️ Passive Buff Flags
+var is_in_overdrive: bool = false
+const DAMAGE_BUFF_MULTIPLIER: float = 1.15  
+const SPEED_BUFF_MULTIPLIER: float = 1.20   
+
+var is_shipping: bool = false
+var board_dash_dir: float = 1.0
 var damage_percent: float = 0.0 
 
 var gravity = ProjectSettings.get_setting("physics/2d/default_gravity")
 var is_attacking: bool = false
 var holding_last_frame: bool = false
 var is_in_knockback: bool = false
+var is_hovering: bool = false
 
-# --- Special State Flags ---
 var is_skull_bashing: bool = false 
 var is_charging_bash: bool = false  
 
@@ -47,12 +83,35 @@ var input_right: String = ""
 var input_up: String = ""
 var input_attack: String = ""
 var input_special: String = "" 
+var input_shield: String = ""
 
-# --- New Hitstun & DI Variables ---
+# --- 🕹️ VIRTUAL INPUT CONTROLLER INTERFACE ---
+@export var is_ai_controlled: bool = false
+
+var input_left_strength: float = 0.0
+var input_right_strength: float = 0.0
+var input_jump_pressed: bool = false
+var input_attack_pressed: bool = false
+var input_special_pressed: bool = false
+var input_shield_held: bool = false
+
 var hitstun_frames: int = 0
 const DI_STRENGTH: float = 35.0 
 
+# ⏱️ JUICE TIMERS
+var coyote_timer: float = 0.0
+const COYOTE_DURATION: float = 0.1 
+
+var down_special_buffer_timer: float = 0.0
+const BUFFER_DURATION: float = 0.15 
+
+var block_shader_updates: bool = false
+var combo_hit_count: int = 0
+var input_buffer: Array[Dictionary] = []
+const BUFFER_WINDOW_MS = 130 
+
 func _ready():
+	print("[DEBUG] Player spawned into the scene tree with the exact name: ", name)
 	sprite.animation_finished.connect(_on_animation_finished)
 	sprite.frame_changed.connect(_on_sprite_frame_changed)
 	
@@ -60,138 +119,362 @@ func _ready():
 	if skull_box: skull_box.area_entered.connect(_on_skull_box_area_entered)
 	launch_trail.scale_amount_min = 0.3
 	
-	# --- Dynamic Input Strings Configuration ---
+	if punch_hitbox: punch_hitbox.disabled = true
+	if skull_hitbox: skull_hitbox.disabled = true
+	if shield_collision: shield_collision.disabled = true # Start with shield off
+
+	if sprite:
+		sprite.sprite_frames = sprite.sprite_frames.duplicate(true)
+		if sprite.material:
+			sprite.material = sprite.material.duplicate(true)
+			
+	_setup_collision_layers()
+	
+	# Run our controller determination setup
+	_determine_control_type()
+
+# --- ⚙️ CONTROL ROUTING ENGINE ---
+func _determine_control_type() -> void:
+	# Format action strings using player_id mapping (e.g. p1_left, p2_shield)
 	input_left = "p%d_left" % player_id
 	input_right = "p%d_right" % player_id
 	input_up = "p%d_up" % player_id
 	input_attack = "p%d_attack" % player_id
 	input_special = "p%d_special" % player_id 
-	
-	if punch_hitbox: punch_hitbox.disabled = true
-	if skull_hitbox: skull_hitbox.disabled = true
+	input_shield = "p%d_shield" % player_id
 
-	_setup_collision_layers()
+	# Reset physical input values to avoid drift patterns or input sticking
+	input_left_strength = 0.0
+	input_right_strength = 0.0
+	input_jump_pressed = false
+	input_attack_pressed = false
+	input_special_pressed = false
+	input_shield_held = false
+
+	# some debug stuff
+	if is_ai_controlled:
+		print("Node '%s' (Player ID: %d) routed to AUTOMATED AI CONTROL." % [name, player_id])
+	else:
+		print("Node '%s' (Player ID: %d) routed to HUMAN HARDWARE INPUT via mapping prefixes: '%s_'" % [name, player_id, "p" + str(player_id)])
 
 func _physics_process(delta):
 	queue_redraw()
 
-	# --- NEW: Hitstun Processing & DI ---
+	# 🚨 VELOCITY GUARD
+	if is_nan(velocity.x) or is_inf(velocity.x): velocity.x = 0.0
+	if is_nan(velocity.y) or is_inf(velocity.y): velocity.y = 0.0
+
+	#inputs and that kinda stuff
+	if not is_ai_controlled:
+		input_left_strength = Input.get_action_strength(input_left)
+		input_right_strength = Input.get_action_strength(input_right)
+		input_jump_pressed = Input.is_action_just_pressed(input_up)
+		input_attack_pressed = Input.is_action_just_pressed(input_attack)
+		input_special_pressed = Input.is_action_just_pressed(input_special)
+		input_shield_held = Input.is_action_pressed(input_shield)
+	else:
+		# gets stored input and does them
+		if input_jump_pressed:    buffer_input("jump")
+		if input_attack_pressed:  buffer_input("attack")
+		if input_special_pressed: buffer_input("special")
+
+	#makes the AI a bit better by stoping attack follow trough sometimes
+	if is_ai_controlled and input_special_pressed and (input_jump_pressed or velocity.y > 0):
+		if is_attacking and not is_skull_bashing and not is_charging_bash:
+			is_attacking = false 
+			
+	var is_holding_up: bool = input_jump_pressed if is_ai_controlled else Input.is_action_pressed(input_up)
+	var is_moving_sideways: bool = (input_left_strength > 0.1 or input_right_strength > 0.1)
+
+	# hitstun stuff
 	if hitstun_frames > 0:
 		hitstun_frames -= 1
-		print(velocity.length())
+		is_shielding = false 
+		if shield_collision: shield_collision.disabled = true
+		if shield_sprite: shield_sprite.visible = false
+		
 		if launch_trail and velocity.length() > 500.0:
 			launch_trail.emitting = true
-		# 1. Apply Normal Gravity while in hitstun
+
 		if not is_on_floor():
 			if velocity.y > 0:
 				velocity.y += gravity * fall_gravity_multiplier * delta
 			else:
 				velocity.y += gravity * base_gravity_multiplier * delta
 		
-		# 2. Directional Influence (DI)
-		# Reads player input during hitstun to let them alter their launch angle
-		var di_direction = Input.get_axis(input_left, input_right)
+		var di_direction = input_right_strength - input_left_strength
 		if di_direction != 0:
 			velocity.x += di_direction * DI_STRENGTH * delta * 60.0
 		
-		# 3. Apply drift/knockback decay even during hitstun
 		velocity.x = move_toward(velocity.x, 0.0, knockback_resistance * delta)
 		
-		# Move and update animations, then exit early to skip normal inputs!
 		move_and_slide()
 		queue_animations(di_direction)
+		_assert_bounds_safety()
 		return
 
-	# If hitstun frames hit 0 but they are still technically flying from knockback
+	if is_down_special_active:
+		if is_on_floor():
+			velocity = Vector2.ZERO 
+		move_and_slide()
+		return
+
+	# --- 🛡️ SHIELD VIRTUAL INPUT PROCESSING ---
+	if input_shield_held and not is_in_knockback and not is_attacking:
+		if current_shield_health > 10.0: 
+			is_shielding = true
+		else:
+			is_shielding = false
+	else:
+		is_shielding = false
+
+	if is_shielding:
+		velocity.x = 0.0 
+		if shield_sprite: shield_sprite.visible = true
+		if shield_collision: shield_collision.disabled = false
+		
+		current_shield_health = max(0.0, current_shield_health - shield_decay_rate * delta)
+		
+		var health_ratio = current_shield_health / max_shield_health
+		var final_scale = health_ratio * base_shield_scale
+		if shield_sprite: shield_sprite.scale = Vector2(final_scale, final_scale)
+		if shield_box: shield_box.scale = Vector2(final_scale, final_scale)
+		
+		if current_shield_health <= 0.0:
+			is_shielding = false
+			if shield_sprite: shield_sprite.visible = false
+			if shield_collision: shield_collision.set_deferred("disabled", true)
+			universal_take_damage(0.0, 0.0, 0.0, -450.0, 0.0, 2.5) 
+	else:
+		if shield_sprite: shield_sprite.visible = false
+		if shield_collision: shield_collision.disabled = true
+		current_shield_health = min(max_shield_health, current_shield_health + shield_regen_rate * delta)
+
+	if is_shielding:
+		move_and_slide()
+		queue_animations(0.0)
+		return 
+		
+	# coyote time stuff
+	if is_on_floor():
+		coyote_timer = COYOTE_DURATION 
+		air_skull_bash_count = 0
+		if is_skull_bashing:
+			end_skull_bash_state()
+	else:
+		coyote_timer = max(0.0, coyote_timer - delta)
+		
+	down_special_buffer_timer = max(0.0, down_special_buffer_timer - delta)
+	
 	if is_in_knockback and hitstun_frames <= 0:
 		velocity.x = move_toward(velocity.x, 0.0, knockback_resistance * delta)
 		if is_on_floor() and abs(velocity.x) < 30.0:
 			is_in_knockback = false
-			# 💨 TRAIL LOGIC: Turn off smoke when they regain control or land safely
 			if launch_trail:
 				launch_trail.emitting = false
 
-	# --- Gravity Processing (Normal State) ---
-	if not is_on_floor():
-		if velocity.y > 0:
-			velocity.y += gravity * fall_gravity_multiplier * delta
-			if is_skull_bashing:
-				end_skull_bash_state()
-		else:
-			velocity.y += gravity * base_gravity_multiplier * delta
+	if not is_hovering:
+		if not is_on_floor():
+			if velocity.y > 0:
+				velocity.y += gravity * fall_gravity_multiplier * delta
+			else:
+				velocity.y += gravity * base_gravity_multiplier * delta
+
+	# --- ⚔️ COMBAT STATE MATRIX ---
+	var buffered_action: String = ""
+	if not is_in_knockback and hitstun_frames <= 0:
+		buffered_action = _clean_and_get_buffered_input()
 		
-	# --- Input Checks: Dynamic Move Separation ---
+	if buffered_action == "jump":    input_jump_pressed = true
+	if buffered_action == "attack":  input_attack_pressed = true
+	if buffered_action == "special": input_special_pressed = true
 	
-	# FIX: Skull Bash requires BOTH input_special pressed AND input_up held down
-	if Input.is_action_just_pressed(input_special) and Input.is_action_pressed(input_up) and not is_in_knockback and not is_attacking:
-		trigger_skull_bash_charge()
+	if is_ai_controlled:
+		input_jump_pressed = (buffered_action == "jump")
+		input_attack_pressed = (buffered_action == "attack")
+		input_special_pressed = (buffered_action == "special")
+
+	# 1. SUPER MOVE
+	if input_attack_pressed and input_special_pressed and not is_in_knockback and not is_attacking:
+		trigger_super_ship_move()
+		input_attack_pressed = false
+		input_special_pressed = false
+
+	# 2. UP SPECIAL (SKULL BASH COUNTER PRIORITY FLIP)
+	elif input_special_pressed and is_holding_up and not is_in_knockback and (not is_attacking or (is_attacking and not is_charging_bash and not is_skull_bashing)):
+		if not is_on_floor() and air_skull_bash_count >= max_air_skull_bashes:
+			input_special_pressed = false
+		else:
+			if not is_on_floor():
+				air_skull_bash_count += 1
+				print("[COMBAT] Air Up-Special counter allowed. Count: ", air_skull_bash_count)
+			trigger_skull_bash_charge()
+			input_special_pressed = false
+			input_jump_pressed = false
+
+	# 3. SIDE SPECIAL (LAG SPIKE)
+	elif input_special_pressed and is_moving_sideways and not is_in_knockback and not is_attacking:
+		input_special_pressed = false
+		if input_left_strength > input_right_strength:
+			$AnimatedSprite2D.flip_h = true
+		elif input_right_strength > input_left_strength:
+			$AnimatedSprite2D.flip_h = false
+		
+		if is_ai_controlled:
+			execute_down_special()
+		else:
+			down_special_buffer_timer = BUFFER_DURATION
 			
-	# Regular Combo attack configuration
-	elif Input.is_action_just_pressed(input_attack) and not is_in_knockback and not is_attacking:
+	# 4. BASIC ATTACK (PUNCH)
+	elif input_attack_pressed and not is_in_knockback and not is_attacking and sprite.animation != "punch":
 		trigger_combo_strike()
-
-	# Normal Jump Mechanics
-	if Input.is_action_just_pressed(input_up) and is_on_floor() and not is_attacking and not is_in_knockback:
-		velocity.y = Jump_Velocity
+		input_attack_pressed = false
 	
-	var direction = Input.get_axis(input_left, input_right)
+	# --- 🏃‍♂️ MOVEMENT EXECUTION LAYER ---
+	if input_jump_pressed and is_on_floor() and not is_attacking and not is_in_knockback:
+		velocity.y = Jump_Velocity
+		input_jump_pressed = false 
+	
+	var direction = input_right_strength - input_left_strength
 
-	# --- Normal Ground/Air Horizontal Movement ---
 	if not is_attacking and not is_in_knockback:
 		if direction != 0:
-			velocity.x = move_toward(velocity.x, direction * speed, acceleration * delta)
+			if sign(direction) != sign(velocity.x) and abs(velocity.x) > 10.0:
+				velocity.x = move_toward(velocity.x, 0.0, friction * delta)
+			else:
+				velocity.x = move_toward(velocity.x, direction * speed, acceleration * delta)
 			sprite.flip_h = (direction < 0)
 			_flip_hitbox_directions(direction < 0)
 		else:
 			velocity.x = move_toward(velocity.x, 0.0, friction * delta)
 	
-	# Attack-specific friction logic
 	if is_attacking:
 		if is_charging_bash:
 			velocity.x = move_toward(velocity.x, 0.0, friction * 0.2 * delta)
 		elif is_skull_bashing:
-			velocity.x = 0.0
+			if input_attack_pressed or input_special_pressed:
+				end_skull_bash_state()
+			if direction != 0:
+				var skull_bash_drift_speed = speed * 0.8
+				sprite.flip_h = (direction < 0)
+				_flip_hitbox_directions(direction < 0)
+				velocity.x = move_toward(velocity.x, direction * skull_bash_drift_speed, acceleration * delta)
+			else:
+				velocity.x = move_toward(velocity.x, 0.0, friction * 0.3 * delta)
 		else:
 			velocity.x = move_toward(velocity.x, 0.0, friction * 0.7 * delta)
-		
+			
+	if down_special_buffer_timer > 0.0 and (is_on_floor() or coyote_timer > 0.0) and not is_down_special_active:
+		down_special_buffer_timer = 0.0 
+		execute_down_special()
+
 	move_and_slide()
 	queue_animations(direction)
+	_assert_bounds_safety()
+
+	if is_shipping:
+		if board_trail and marker_1: board_trail.global_position = marker_1.global_position
+		if board_trail_2 and marker_2: board_trail_2.global_position = marker_2.global_position
+		velocity.x = board_dash_dir * 950.0
+		velocity.y = 0.0
+
+# 🚨 EMERGENCY TRACKING RESCUE OUT OF BOUNDS
+func _assert_bounds_safety() -> void:
+	if abs(global_position.x) > 8000.0 or abs(global_position.y) > 8000.0:
+		print("⚠️ [ANTI-WARP ACTUATOR] Corruption checked at: ", global_position, ". Resetting coordinates.")
+		global_position = Vector2(0, -200)
+		velocity = Vector2.ZERO
+		die()
+
+func die() -> void:
+	print("💀 Player ", player_id, " has been knocked out!")
+	set_physics_process(false)
+	velocity = Vector2.ZERO
+
+	if punch_hitbox: punch_hitbox.set_deferred("disabled", true)
+	if skull_hitbox: skull_hitbox.set_deferred("disabled", true)
+	if board_box: board_box.set_deferred("disabled", true)
+	if shield_collision: shield_collision.set_deferred("disabled", true)
+	if launch_trail: launch_trail.emitting = false
+
+	sprite.modulate = Color(2.0, 2.0, 2.0, 1.0)
+	await get_tree().create_timer(0.08).timeout
 	
-# --- Attack Activation States ---
+	var death_tween = create_tween()
+	death_tween.tween_property(sprite, "modulate", Color(1, 1, 1, 0.0), 0.35)
+	await death_tween.finished
+	
+	visible = false
+	sprite.modulate = Color(1, 1, 1, 1.0)
+
+func respawn(spawn_position: Vector2) -> void:
+	reset_combat_state()
+	global_position = spawn_position
+	visible = true
+	set_physics_process(true)
+	_trigger_respawn_invincibility()
+
+func _trigger_respawn_invincibility() -> void:
+	if hurtbox: hurtbox.set_deferred("monitorable", false)
+	if hurtbox: hurtbox.set_deferred("monitoring", false)
+
+	var flash_tween = create_tween().set_loops(8)
+	flash_tween.tween_property(sprite, "modulate:a", 0.2, 0.12)
+	flash_tween.tween_property(sprite, "modulate:a", 1.0, 0.13)
+
+	await flash_tween.finished
+
+	sprite.modulate = Color(1, 1, 1, 1.0)
+	if hurtbox: hurtbox.set_deferred("monitorable", true)
+	if hurtbox: hurtbox.set_deferred("monitoring", true)
+	print("Respawn invincibility wore off for Player ", player_id)
 
 func trigger_combo_strike():
+	if sprite.animation == "punch" and is_attacking:
+		return
+		
 	is_attacking = true
 	holding_last_frame = false
+	combo_hit_count = 0 
 	
 	var lunge_direction = -1.0 if sprite.flip_h else 1.0
-	velocity.x = lunge_direction * lunge_speed
+	if is_on_floor():
+		velocity.x = lunge_direction * lunge_speed
+		sprite.stop()
+		sprite.frame = 0
+		sprite.play("punch")
+	else:
+		velocity.x = lunge_direction * lunge_speed * 2
+		sprite.stop()
+		sprite.frame = 0
+		sprite.play("punch", -1, 2.0)
 	
-	if punch_hitbox: punch_hitbox.set_deferred("disabled", true) 
-	if skull_hitbox: skull_hitbox.set_deferred("disabled", true)
-		
-	sprite.stop()
-	sprite.frame = 0
-	sprite.play("punch")
-
 func trigger_skull_bash_charge():
 	is_attacking = true
 	is_charging_bash = true
 	is_skull_bashing = false
 	holding_last_frame = false
+	combo_hit_count = 0 
 	
 	if punch_hitbox: punch_hitbox.set_deferred("disabled", true)
 	if skull_hitbox: skull_hitbox.set_deferred("disabled", true)
 		
-	sprite.stop()
-	sprite.frame = 0
-	sprite.play("skull_bash")
+	if is_on_floor():
+		sprite.stop()
+		sprite.frame = 0
+		sprite.play("skull_bash")
+	else:
+		sprite.stop()
+		sprite.frame = 0
+		sprite.play("skull_bash",-1, 2.50)
 
 func release_skull_bash_launch():
 	is_charging_bash = false
 	is_skull_bashing = true
-	
-	velocity.y = skull_bash_velocity_y
-	velocity.x = 0.0 
+	if is_on_floor():
+		velocity.y = skull_bash_velocity_y
+	else:
+		velocity.y = skull_bash_velocity_y * 1.1
 	
 	if skull_hitbox:
 		skull_hitbox.set_deferred("disabled", false)
@@ -204,12 +487,8 @@ func end_skull_bash_state():
 	
 	if skull_hitbox:
 		skull_hitbox.set_deferred("disabled", true)
-		
-
 		if is_on_floor(): sprite.play("idle")
 		else: sprite.play("default")
-
-# --- Frame & Animation Management ---
 
 func _on_sprite_frame_changed():
 	if is_charging_bash and sprite.animation == "skull_bash":
@@ -218,14 +497,25 @@ func _on_sprite_frame_changed():
 			release_skull_bash_launch()
 			
 	elif is_attacking and sprite.animation == "punch":
+		if sprite.frame == 1:
+			if punch_hitbox:
+				punch_hitbox.set_deferred("disabled", false)
+		
 		var total_frames = sprite.sprite_frames.get_frame_count("punch")
 		if sprite.frame == total_frames - 1:
 			if punch_hitbox:
-				punch_hitbox.set_deferred("disabled", false)
-
+				punch_hitbox.set_deferred("disabled", true)
+				
 func queue_animations(direction: float):
 	if is_in_knockback:
 		sprite.play("default") 
+		return
+		
+	if is_down_special_active:
+		return
+
+	if is_shielding:
+		sprite.play("idle") 
 		return
 
 	if is_attacking:
@@ -237,7 +527,7 @@ func queue_animations(direction: float):
 
 	if is_on_floor():
 		if direction == 0: sprite.play("idle")
-		else: sprite.play("default")
+		else: sprite.play("run")
 	else:
 		sprite.play("default")
 
@@ -246,80 +536,106 @@ func _on_animation_finished():
 		holding_last_frame = true
 		if punch_hitbox: punch_hitbox.set_deferred("disabled", true)
 		
-		get_tree().create_timer(0.04).timeout.connect(func():
+		var clear_timer = get_tree().create_timer(0.04)
+		clear_timer.timeout.connect(func():
 			if holding_last_frame:
 				is_attacking = false
 				holding_last_frame = false
 		)
 
-# --- Hit Detection Loops ---
-
 func _on_punch_box_area_entered(area):
 	if area.name == "Hurtbox":
 		var opponent = area.get_parent()
 		if opponent != self and opponent.has_method("universal_take_damage"):
-			var knockback_dir = -1.0 if sprite.flip_h else 1.0
-			var random_damage = randi_range(3, 7)
+			combo_hit_count += 1
+			print("🥊 [PUNCH COMBO HIT DETECTED]")
 			
-			# 🥊 PUNCH: 0.4 Hitstun Multiplier
-			# Low hitstun lets you link quick follow-up moves together at low percentages!
-			opponent.universal_take_damage(random_damage, knockback_dir, 160.0, -140.0, 1.2, 0.4)
+			if punch_hitbox:
+				punch_hitbox.set_deferred("disabled", true)
+			
+			if combo_hit_count > 1:
+				return 
+
+			var knockback_dir = -1.0 if sprite.flip_h else 1.0
+			var punch_dmg = 4.0 if is_on_floor() else 6.0
+			opponent.universal_take_damage(punch_dmg, knockback_dir, 450.0, -250.0, 3.5, 1.2, false)
+			charge_super_meter(5.0) 
 
 func _on_skull_box_area_entered(area):
 	if area.name == "Hurtbox":
 		var opponent = area.get_parent()
 		if opponent != self and opponent.has_method("universal_take_damage"):
-			var knockback_dir = -1.0 if sprite.flip_h else 1.0
-			
-			# 💀 SKULL BASH: 1.2 Hitstun Multiplier
-			# Massive vertical launch (0.0 horizontal, -380.0 vertical) paired with a high 
-			# hitstun multiplier ensures they are frozen while rocketing toward the top blast zone!
-			opponent.universal_take_damage(10.0, knockback_dir, 0.0, -270.0, 4.0, 1.1)
+			combo_hit_count += 1
+			print("💀 [SKULL BASH HIT DETECTED]")
 			
 			if skull_hitbox:
 				skull_hitbox.set_deferred("disabled", true)
 				
+			if combo_hit_count > 1:
+				return
+
+			var knockback_dir = -1.0 if sprite.flip_h else 1.0
+			opponent.universal_take_damage(10.0, knockback_dir, 0.0, -270.0, 4.0, 1.1, true)
+			charge_super_meter(8.0) 
 				
-func universal_take_damage(damage: float, hit_dir: float, base_kb_x: float, base_kb_y: float, kb_scaling: float, hitstun_mult: float = 1.0):
-	damage_percent += damage
+func universal_take_damage(damage: float, hit_dir: float, base_kb_x: float, base_kb_y: float, kb_scaling: float, hitstun_mult: float = 1.0, is_special: bool = false):
+	
+	if is_shielding and not is_special:
+		current_shield_health -= damage * 1.5
+		print("🛡️ Shield Intercepted Hit! Health Remaining: ", current_shield_health)
+		return
+
+	if is_in_overdrive:
+		damage *= DAMAGE_BUFF_MULTIPLIER
+		damage_percent += damage
+	else:
+		damage_percent += damage
+	charge_super_meter(2.0) 
 	print("[HIT] Player ", player_id, " took ", damage, "%. Total: ", damage_percent, "%")
 	
 	var heavy_strike_check: bool = (abs(base_kb_y) > 250.0 or damage > 10.0)
 	SignalBus.global_player_damaged.emit(player_id, damage_percent, heavy_strike_check)
+	var dynamic_intensity: float = clamp(damage * 0.8, 0.0, 8.0)
+	
+	var main_camera = get_viewport().get_camera_2d()
+	if main_camera and main_camera.has_method("start_shake"):
+		main_camera.start_shake(dynamic_intensity, 12)
+	
+	var freeze_duration: float = clamp(damage * 0.015, 0.05, 0.2)
+	
+	if freeze_duration > 0.0:
+		Engine.time_scale = 0.02
+		await get_tree().create_timer(freeze_duration, true, false, true).timeout
+		Engine.time_scale = 1.0
 	
 	if hit_dir == 0: hit_dir = 1.0
 	
-	# Calculate structural multiplier based on current health percentage
 	var launch_chance = clamp(damage_percent / 150.0, 0.0, 0.95)
 	var random_roll = randf()
 	var final_x = 0.0
 	var final_y = 0.0
-	
-	# 🎯 THE FIX: If an attack passes absolutely NO base forces (like the 1% hazard zone),
-	# do not calculate random launches or overwrite velocities. Just preserve current speeds.
+
 	if base_kb_x == 0.0 and base_kb_y == 0.0:
 		final_x = velocity.x
 		final_y = velocity.y
-		hitstun_frames = 0 # No hitstun stutter for passive ticking hazards
-	
-	# Otherwise, process standard player attacks normally
+		hitstun_frames = 0 
+		
 	elif random_roll < launch_chance:
 		final_x = (base_kb_x + (damage_percent * (kb_scaling * 0.4))) * hit_dir * 0.8
 		final_y = (base_kb_y - (damage_percent * (kb_scaling * 1.4))) * 1.5
-		
-		# Recalculate hitstun frames for normal scaling hits
 		var calculated_frames = (6 + int(damage_percent * 0.12)) * hitstun_mult
 		hitstun_frames = clamp(int(calculated_frames), 6, 30) 
 	else:
 		final_x = base_kb_x * hit_dir * 0.6
 		final_y = base_kb_y * 1.2
-		
 		var calculated_frames = (6 + int(damage_percent * 0.12)) * hitstun_mult
 		hitstun_frames = clamp(int(calculated_frames), 6, 30) 
 
+	final_x = clamp(final_x, -2800.0, 2800.0)
+	final_y = clamp(final_y, -2800.0, 2800.0)
+
 	velocity = Vector2(final_x, final_y)
 	
-	# Only set knockback state true if it was an actual physical hit
 	if base_kb_x != 0.0 or base_kb_y != 0.0:
 		is_in_knockback = true
 		is_attacking = false 
@@ -327,14 +643,12 @@ func universal_take_damage(damage: float, hit_dir: float, base_kb_x: float, base
 		is_charging_bash = false
 		holding_last_frame = false
 		
-		print(velocity.length())
 		if launch_trail and velocity.length() > 500.0:
 			launch_trail.emitting = true
 		
 		if punch_hitbox: punch_hitbox.set_deferred("disabled", true)
 		if skull_hitbox: skull_hitbox.set_deferred("disabled", true)
-	
-# --- Helpers ---
+
 func _flip_hitbox_directions(is_flipped: bool):
 	var flip_scale = -1.0 if is_flipped else 1.0
 	if hitbox: hitbox.scale.x = flip_scale
@@ -349,3 +663,395 @@ func _setup_collision_layers():
 		if hurtbox: hurtbox.set_collision_layer_value(i, true); hurtbox.set_collision_mask_value(i, true)
 		if punch_box: punch_box.set_collision_layer_value(i, true); punch_box.set_collision_mask_value(i, true)
 		if skull_box: skull_box.set_collision_layer_value(i, true); skull_box.set_collision_mask_value(i, true)
+
+func trigger_super_ship_move() -> void:
+	if current_super_meter < max_super_meter or is_shipping: 
+		return
+	
+	is_attacking = true
+	is_shipping = true
+	current_super_meter = 0.0
+	_update_super_meter_ui()
+	board_dash_dir = -1.0 if sprite.flip_h else 1.0
+	velocity = Vector2.ZERO 
+	set_physics_process(false) 
+	block_shader_updates = true
+	
+	var main_camera = get_viewport().get_camera_2d()
+	var original_zoom: Vector2 = Vector2(1.0, 1.0)
+	var original_position: Vector2 = Vector2.ZERO 
+	var original_parent: Node = null
+
+	if main_camera:
+		original_zoom = main_camera.zoom
+		original_position = main_camera.global_position 
+		original_parent = main_camera.get_parent()
+
+		original_parent.remove_child(main_camera)
+		add_child(main_camera)
+		main_camera.position = Vector2.ZERO
+		main_camera.zoom = original_zoom * 2.0
+		
+	var canvas_layer = CanvasLayer.new()
+	canvas_layer.name = "SuperDimLayer"
+	
+	var dim_overlay = ColorRect.new()
+	dim_overlay.name = "DimOverlay"
+	dim_overlay.color = Color(0.227, 0.227, 0.227, 0.0)
+	dim_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	dim_overlay.anchors_preset = Control.PRESET_FULL_RECT
+	dim_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE)
+
+	canvas_layer.add_child(dim_overlay)
+	get_tree().root.add_child(canvas_layer)
+
+	var fade_in_tween = create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+	fade_in_tween.tween_property(dim_overlay, "color:a", 0.75, 0.15).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	
+	var parent_node = get_parent()
+	Engine.time_scale = 0.12  
+	
+	if orph_board: 
+		orph_board.flip_h = sprite.flip_h
+		orph_board.visible = false
+		
+	var marker_side = -1.0 if sprite.flip_h else 1.0
+	if marker_1: marker_1.position.x = abs(marker_1.position.x) * -marker_side
+	if marker_2: marker_2.position.x = abs(marker_2.position.x) * -marker_side
+	
+	var cutscene_tween = create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+	cutscene_tween.set_speed_scale(1.0) 
+	
+	cutscene_tween.tween_property(sprite, "offset:y", 6.0, 0.04).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	cutscene_tween.tween_property(sprite, "offset:y", -45.0, 0.1).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	cutscene_tween.tween_property(sprite, "offset:y", -27.0, 0.07).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	
+	await cutscene_tween.finished
+	
+	global_position.y += -27.0 
+	is_hovering = true  
+	sprite.offset.y = 0.0      
+	
+	if orph_board: 
+		orph_board.visible = true 
+		
+	if board_trail and marker_1: 
+		board_trail.global_position = marker_1.global_position
+		board_trail.emitting = true
+	if board_trail_2 and marker_2: 
+		board_trail_2.global_position = marker_2.global_position
+		board_trail_2.emitting = true
+	if board_box: 
+		board_box.set_deferred("disabled", false)
+		
+	if main_camera and main_camera.has_method("start_shake"):
+		main_camera.start_shake(4.0, 5.0)
+	await get_tree().create_timer(0.08, true, false, true).timeout
+		
+	set_physics_process(true) 
+	Engine.time_scale = 1.0
+
+	velocity.x = board_dash_dir * 1100.0 
+	velocity.y = 0.0 
+	
+	if main_camera and main_camera.has_method("start_shake"):
+		main_camera.start_shake(28.0, 35.0) 
+		
+	await get_tree().create_timer(0.6).timeout
+		
+	if main_camera and original_parent:
+		var final_world_pos = main_camera.global_position
+
+		remove_child(main_camera)
+		original_parent.add_child(main_camera)
+		main_camera.global_position = final_world_pos
+
+		var cam_tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		cam_tween.tween_property(main_camera, "global_position", original_position, 0.3) 
+		cam_tween.tween_property(main_camera, "zoom", original_zoom, 0.4) 
+
+		await cam_tween.finished
+
+	_clean_up_final_smash_visuals(parent_node, 0.0)
+
+func _clean_up_final_smash_visuals(target_world_node: Node, delay: float) -> void:
+	await get_tree().create_timer(delay + 0.25).timeout
+	
+	if is_instance_valid(target_world_node):
+		var tween = create_tween()
+		tween.tween_property(target_world_node, "modulate", Color(1, 1, 1), 0.3)
+		
+	if orph_board: orph_board.visible = false
+	if board_box: board_box.set_deferred("disabled", true)
+	if board_trail: board_trail.emitting = false
+	if board_trail_2: board_trail_2.emitting = false
+	
+	var dim_layer = get_tree().root.find_child("SuperDimLayer", true, false)
+	if dim_layer:
+		var dim_overlay = dim_layer.find_child("DimOverlay", true, false)
+		if dim_overlay:
+			var fade_out_tween = create_tween()
+			fade_out_tween.tween_property(dim_overlay, "color:a", 0.0, 0.3).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+			fade_out_tween.finished.connect(func(): dim_layer.queue_free())
+		else:
+			dim_layer.queue_free()
+		
+	is_attacking = false
+	is_shipping = false
+	is_hovering = false
+	block_shader_updates = false
+	set_charge_glow(false)
+	
+func end_super_ship_move() -> void:
+	is_shipping = false
+	is_attacking = false
+	
+	if orph_board: orph_board.visible = false
+	if board_trail: board_trail.emitting = false
+	if board_trail_2: board_trail_2.emitting = false
+	
+	if board_box: 
+		board_box.set_deferred("disabled", true)
+	
+	velocity.x = move_toward(velocity.x, 0.0, friction)
+	_deactivate_overdrive_buffs()
+
+func _on_board_box_area_entered(area: Area2D) -> void:
+	if area.name == "Hurtbox":
+		var opponent = area.get_parent()
+		if opponent != self and opponent.has_method("universal_take_damage"):
+			var launch_dir = board_dash_dir
+			opponent.universal_take_damage(45.0, launch_dir, 2400.0, -450.0, 3.5, 2.5, true)
+			
+			Engine.time_scale = 0.05
+			await get_tree().create_timer(0.15 * 0.05).timeout
+			Engine.time_scale = 1.0
+			position.x -= launch_dir * 15.0
+			end_super_ship_move()
+			print("[FINAL SMASH] Direct PCB Hoverboard impact! Opponent obliterated.")
+
+func charge_super_meter(base_amount: float) -> void:
+	if is_shipping: return 
+	
+	var comeback_multiplier: float = 1.0 + (damage_percent / 90.0)
+	var final_charge_amount: float = base_amount * comeback_multiplier
+	
+	current_super_meter = clamp(current_super_meter + final_charge_amount, 0.0, max_super_meter)
+
+	if current_super_meter >= max_super_meter and not is_in_overdrive:
+		_activate_overdrive_buffs()
+
+func _update_super_meter_ui() -> void:
+	if super_meter_ui:
+		super_meter_ui.max_value = max_super_meter
+		super_meter_ui.value = current_super_meter
+
+func _activate_overdrive_buffs() -> void:
+	is_in_overdrive = true
+	speed = base_move_speed * SPEED_BUFF_MULTIPLIER
+	if sprite and sprite.material:
+		sprite.material.set_shader_parameter("is_active", true)
+	if sprite:
+		sprite.modulate = Color(1.182, 0.973, 2.5, 1.0) 
+	print("[OVERDRIVE] Player ", player_id, " is fully charged! Outline activated.")
+
+func _deactivate_overdrive_buffs() -> void:
+	is_in_overdrive = false
+	if sprite and sprite.material:
+		sprite.material.set_shader_parameter("is_active", false)
+	if sprite:
+		sprite.modulate = Color(1, 1, 1, 1) 
+
+var is_down_special_active = false
+
+func execute_down_special() -> void:
+	if is_down_special_active: 
+		return
+	is_down_special_active = true
+	
+	if not is_on_floor():
+		velocity.x = 0
+		while not is_on_floor():
+			velocity.y = 1200.0 
+			move_and_slide()
+			await get_tree().process_frame
+			
+	velocity = Vector2.ZERO 
+	
+	var is_facing_left: bool = $AnimatedSprite2D.flip_h
+	var direction_multiplier = -1.0 if is_facing_left else 1.0
+	
+	if $SpawnMaker:
+		$SpawnMaker.position.x = abs($SpawnMaker.position.x) * direction_multiplier
+	
+	$AnimatedSprite2D.animation = "down_special"
+	$AnimatedSprite2D.frame = 0
+	$AnimatedSprite2D.play("down_special")
+	
+	var total_frames = $AnimatedSprite2D.sprite_frames.get_frame_count("down_special")
+	while $AnimatedSprite2D.animation == "down_special" and $AnimatedSprite2D.frame < total_frames - 1:
+		await $AnimatedSprite2D.frame_changed
+		if not $AnimatedSprite2D.is_playing():
+			break
+			
+	$AnimatedSprite2D.pause()
+	
+	for i in range(5):
+		var wave_step = 15.0 * i * direction_multiplier
+		var spawn_x = $SpawnMaker.global_position.x + wave_step
+		var spawn_y = $SpawnMaker.global_position.y 
+		
+		var space_state = get_world_2d().direct_space_state
+		var ray_start = Vector2(spawn_x, spawn_y - 10.0)
+		var ray_end = Vector2(spawn_x, spawn_y + 20.0)
+		
+		var query = PhysicsRayQueryParameters2D.create(ray_start, ray_end)
+		query.exclude = [self.get_rid()]
+		
+		var result = space_state.intersect_ray(query)
+		if result.is_empty():
+			break 
+			
+		var spike_instance = LAG_SPIKE_SCENE.instantiate()
+		spike_instance.creator = self
+		spike_instance.global_position = Vector2(spawn_x, result.position.y)
+		
+		if spike_instance.has_node("AnimatedSprite2D"):
+			spike_instance.get_node("AnimatedSprite2D").flip_h = is_facing_left
+			
+		get_parent().add_child(spike_instance)
+		await get_tree().create_timer(0.08).timeout
+		
+	is_down_special_active = false
+	if is_on_floor():
+		$AnimatedSprite2D.play("idle")
+	print("[ATTACK] Completed. Control released.")
+	
+func Tensor_charge_glow(enable: bool) -> void:
+	if block_shader_updates and enable == true:
+		return
+	if sprite and sprite.material:
+		sprite.material.set_shader_parameter("is_active", enable)
+
+func set_charge_glow(enable: bool) -> void:
+	if block_shader_updates and enable == true:
+		return
+	if sprite and sprite.material:
+		sprite.material.set_shader_parameter("is_active", enable)
+
+func reset_combat_state() -> void:
+	print("🚨 [DEBUG] reset_combat_state() WAS CALLED ON PLAYER ", player_id)
+	var main_camera = get_node_or_null("Camera2D") 
+	if not main_camera:
+		main_camera = get_viewport().get_camera_2d()
+		
+	if main_camera and main_camera.get_parent() == self:
+		var level_root = get_parent()
+		var final_world_pos = main_camera.global_position
+		
+		remove_child(main_camera)
+		level_root.add_child(main_camera)
+		main_camera.global_position = final_world_pos
+		
+		if "zoom" in main_camera:
+			main_camera.zoom = Vector2(1.0, 1.0) 
+
+	var dim_layer = get_tree().root.find_child("SuperDimLayer", true, false)
+	if dim_layer:
+		dim_layer.queue_free()
+
+	Engine.time_scale = 1.0
+	set_physics_process(true)
+
+	damage_percent = 0.0
+	hitstun_frames = 0
+	current_super_meter = current_super_meter * 0.25
+	current_shield_health = max_shield_health 
+	is_attacking = false
+	is_shipping = false
+	is_hovering = false
+	is_in_knockback = false
+	is_down_special_active = false
+	is_charging_bash = false
+	is_skull_bashing = false
+	holding_last_frame = false
+	block_shader_updates = false
+	is_shielding = false
+	velocity = Vector2.ZERO
+
+	# Clear input values
+	input_left_strength = 0.0
+	input_right_strength = 0.0
+	input_jump_pressed = false
+	input_attack_pressed = false
+	input_special_pressed = false
+	input_shield_held = false
+
+	if orph_board: orph_board.visible = false
+	if board_box: board_box.set_deferred("disabled", true)
+	if board_trail: board_trail.emitting = false
+	if board_trail_2: board_trail_2.emitting = false
+	if launch_trail: launch_trail.emitting = false
+	
+	if punch_hitbox: punch_hitbox.set_deferred("disabled", true)
+	if skull_hitbox: skull_hitbox.set_deferred("disabled", true)
+	if shield_collision: shield_collision.disabled = true
+	if shield_sprite: 
+		shield_sprite.visible = false
+		shield_sprite.scale = Vector2(base_shield_scale, base_shield_scale)
+	if shield_box:
+		shield_box.scale = Vector2(base_shield_scale, base_shield_scale)
+
+	set_charge_glow(false)
+	sprite.offset = Vector2.ZERO
+	sprite.modulate = Color(1, 1, 1, 1) 
+	_deactivate_overdrive_buffs()
+	
+	sprite.play("idle")
+	print("[RESPAWN CLEANUP] Player ", player_id, " combat and camera nodes safely restored.")
+	
+	SignalBus.global_player_damaged.emit(player_id, 0.0, false)
+	
+	var hud_node = get_tree().get_root().find_child("HUD", true, false)
+	if hud_node:
+		var container_name = "P1" if player_id == 1 else "P2"
+		var target_container = hud_node.find_child(container_name, true, false)
+		
+		if target_container:
+			var progress_bar = target_container.get_node_or_null("ProgressBar")
+			if progress_bar:
+				progress_bar.value = current_super_meter
+
+#Storing buffered input data if the player is trying to attack in the middle of doing something
+func buffer_input(action_name: String):
+	var input_data = {
+				"action": action_name,
+				"timestamp": Time.get_ticks_msec()
+	}
+	input_buffer.append(input_data)
+
+#storing and returning the action
+func _clean_and_get_buffered_input() -> String:
+	var current_time = Time.get_ticks_msec()
+	while not input_buffer.is_empty() and (current_time - input_buffer[0]["timestamp"]) > BUFFER_WINDOW_MS:
+		input_buffer.pop_front()	
+	if input_buffer.is_empty():
+		return ""
+	var action = input_buffer[0]["action"]
+	input_buffer.clear() 
+	return action
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	

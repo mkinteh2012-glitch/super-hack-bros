@@ -1,0 +1,246 @@
+[gd_scene format=3 uid="uid://bbuemveeeg1lx"]
+
+[ext_resource type="PackedScene" uid="uid://bk4ruuv3s4g5n" path="res://scenes/characters/orpheus.tscn" id="1_3veya"]
+[ext_resource type="Script" uid="uid://ciga2s3nsna0" path="res://scripts/Misc/camera_2d.gd" id="2_0lcg2"]
+[ext_resource type="PackedScene" uid="uid://soq6h0jdoiws" path="res://scenes/UI/health_hud.tscn" id="3_y50u8"]
+[ext_resource type="PackedScene" uid="uid://bah0poc72yl16" path="res://scenes/stageassets/kill_area.tscn" id="4_2kcbm"]
+[ext_resource type="PackedScene" uid="uid://b5jm06dtan4rt" path="res://scenes/stageassets/damage_area.tscn" id="5_8l2cq"]
+[ext_resource type="Script" uid="uid://bdg3ahbpuom2g" path="res://scripts/global/stock_manager.gd" id="6_2qp70"]
+[ext_resource type="Texture2D" uid="uid://lkyq2uugjitp" path="res://assets/sprites/Battlefieldsmallplatform.png" id="7_y50u8"]
+[ext_resource type="Texture2D" uid="uid://xl8udk5ek1gp" path="res://assets/sprites/BattlefieldCenterPlat.png" id="8_2kcbm"]
+[ext_resource type="Texture2D" uid="uid://cicdp8wl5rdle" path="res://assets/sprites/BattlefieldBG.png" id="9_2kcbm"]
+[ext_resource type="PackedScene" uid="uid://bvmvjomnxeh8d" path="res://scenes/shadow.tscn" id="9_2qp70"]
+[ext_resource type="Shader" uid="uid://cwp3u3budtqqg" path="res://scripts/shaders/Shadow.gdshader" id="10_8l2cq"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_2qp70"]
+shader = ExtResource("10_8l2cq")
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_e6enr"]
+size = Vector2(94, 6)
+
+[sub_resource type="OccluderPolygon2D" id="OccluderPolygon2D_2qp70"]
+polygon = PackedVector2Array(-276, 19, -183, 19, -183, 33, -277, 33)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_62c5r"]
+size = Vector2(128, 6)
+
+[sub_resource type="OccluderPolygon2D" id="OccluderPolygon2D_2kcbm"]
+polygon = PackedVector2Array(-289, 35, -165, 35, -167, 50, -288, 50)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_2qkqs"]
+size = Vector2(544, 37)
+
+[sub_resource type="OccluderPolygon2D" id="OccluderPolygon2D_8l2cq"]
+polygon = PackedVector2Array(-306, 25, 247, 27, 248, 75, -303, 76)
+
+[sub_resource type="Gradient" id="Gradient_2kcbm"]
+colors = PackedColorArray(1, 1, 1, 1, 0.43, 0.43, 0.43, 1)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_8l2cq"]
+gradient = SubResource("Gradient_2kcbm")
+fill_from = Vector2(0.5106007, 0)
+
+[node name="Battlefield" type="Node2D" unique_id=76665129]
+
+[node name="Player1" parent="." unique_id=140856988 instance=ExtResource("1_3veya")]
+position = Vector2(-189, -200)
+is_ai_controlled = true
+
+[node name="Player2" parent="." unique_id=1633172297 instance=ExtResource("1_3veya")]
+position = Vector2(185, -200)
+player_id = 2
+is_ai_controlled = true
+
+[node name="Camera2D" type="Camera2D" parent="." unique_id=1012049562]
+position = Vector2(0, -97)
+zoom = Vector2(1.4, 1.4)
+script = ExtResource("2_0lcg2")
+
+[node name="ColorRect" type="ColorRect" parent="Camera2D" unique_id=139455610]
+material = SubResource("ShaderMaterial_2qp70")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 97.0
+offset_bottom = 97.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=103385937]
+
+[node name="HUD" parent="CanvasLayer" unique_id=50802694 instance=ExtResource("3_y50u8")]
+metadata/_edit_use_anchors_ = true
+
+[node name="Boundary" type="Node" parent="." unique_id=950118354]
+
+[node name="KillArea" parent="Boundary" unique_id=15277436 instance=ExtResource("4_2kcbm")]
+position = Vector2(-907, 649)
+
+[node name="KillArea2" parent="Boundary" unique_id=2095732006 instance=ExtResource("4_2kcbm")]
+position = Vector2(-879, -477)
+
+[node name="KillArea3" parent="Boundary" unique_id=1686725249 instance=ExtResource("4_2kcbm")]
+position = Vector2(-1020, 300)
+rotation = 1.5707964
+
+[node name="KillArea4" parent="Boundary" unique_id=1857837965 instance=ExtResource("4_2kcbm")]
+position = Vector2(502, 156)
+rotation = 1.5707964
+
+[node name="DamageArea" parent="Boundary" unique_id=732654864 instance=ExtResource("5_8l2cq")]
+position = Vector2(-341, -133)
+scale = Vector2(1, 2)
+
+[node name="DamageArea2" parent="Boundary" unique_id=1940986680 instance=ExtResource("5_8l2cq")]
+position = Vector2(-283, 791)
+scale = Vector2(1, 2)
+
+[node name="DamageArea3" parent="Boundary" unique_id=558386967 instance=ExtResource("5_8l2cq")]
+position = Vector2(157, 438)
+rotation = 1.5707964
+scale = Vector2(1, 2)
+
+[node name="DamageArea4" parent="Boundary" unique_id=481675831 instance=ExtResource("5_8l2cq")]
+position = Vector2(-1155, 437)
+rotation = 1.5707964
+scale = Vector2(1, 2)
+
+[node name="p1spawn" type="Marker2D" parent="." unique_id=512804762]
+position = Vector2(-189, -200)
+
+[node name="p2spawn" type="Marker2D" parent="." unique_id=371318792]
+position = Vector2(187, -199)
+
+[node name="StockManager" type="Node" parent="." unique_id=2004585312]
+script = ExtResource("6_2qp70")
+
+[node name="StageLayoutt" type="Node2D" parent="." unique_id=1418727483]
+
+[node name="Floor" type="StaticBody2D" parent="StageLayoutt" unique_id=1950436958]
+position = Vector2(-603, -274)
+
+[node name="Platforms" type="StaticBody2D" parent="StageLayoutt/Floor" unique_id=671253487]
+position = Vector2(829, 60)
+collision_layer = 2
+collision_mask = 3
+
+[node name="Platform2" type="StaticBody2D" parent="StageLayoutt/Floor/Platforms" unique_id=716915609]
+position = Vector2(-226, 214)
+
+[node name="Sprite2D" type="Sprite2D" parent="StageLayoutt/Floor/Platforms/Platform2" unique_id=940329638]
+z_index = -1
+position = Vector2(-169, -90)
+texture = ExtResource("7_y50u8")
+
+[node name="CollisionShape2D4" type="CollisionShape2D" parent="StageLayoutt/Floor/Platforms/Platform2" unique_id=1783958755]
+position = Vector2(-169, -94)
+shape = SubResource("RectangleShape2D_e6enr")
+one_way_collision = true
+one_way_collision_margin = 8.0
+debug_color = Color(2.0696223e-06, 0.6318201, 0.46150416, 0.41960785)
+
+[node name="LightOccluder2D" type="LightOccluder2D" parent="StageLayoutt/Floor/Platforms/Platform2" unique_id=829713544]
+position = Vector2(60, -112)
+occluder = SubResource("OccluderPolygon2D_2qp70")
+
+[node name="ShadowSystem" parent="StageLayoutt/Floor/Platforms/Platform2" unique_id=1014011544 instance=ExtResource("9_2qp70")]
+position = Vector2(-171, -80)
+scale = Vector2(1.4, 0.3)
+
+[node name="Platform3" type="StaticBody2D" parent="StageLayoutt/Floor/Platforms" unique_id=1000609717]
+position = Vector2(-226, 214)
+
+[node name="CollisionShape2D3" type="CollisionShape2D" parent="StageLayoutt/Floor/Platforms/Platform3" unique_id=68596262]
+position = Vector2(167, -93.25)
+shape = SubResource("RectangleShape2D_e6enr")
+one_way_collision = true
+one_way_collision_margin = 8.0
+debug_color = Color(2.0696223e-06, 0.6318201, 0.46150416, 0.41960785)
+
+[node name="Sprite2D2" type="Sprite2D" parent="StageLayoutt/Floor/Platforms/Platform3" unique_id=371164380]
+z_index = -1
+position = Vector2(167, -91)
+texture = ExtResource("7_y50u8")
+
+[node name="LightOccluder2D" type="LightOccluder2D" parent="StageLayoutt/Floor/Platforms/Platform3" unique_id=2119729639]
+position = Vector2(399, -117)
+occluder = SubResource("OccluderPolygon2D_2qp70")
+
+[node name="ShadowSystem" parent="StageLayoutt/Floor/Platforms/Platform3" unique_id=1104080579 instance=ExtResource("9_2qp70")]
+position = Vector2(166, -89)
+scale = Vector2(1.3, 0.3)
+
+[node name="Platform" type="StaticBody2D" parent="StageLayoutt/Floor/Platforms" unique_id=568272700]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="StageLayoutt/Floor/Platforms/Platform" unique_id=267111651]
+position = Vector2(-226, 40)
+shape = SubResource("RectangleShape2D_62c5r")
+one_way_collision = true
+one_way_collision_margin = 8.0
+debug_color = Color(2.0696223e-06, 0.6318201, 0.46150416, 0.41960785)
+
+[node name="LightOccluder2D" type="LightOccluder2D" parent="StageLayoutt/Floor/Platforms/Platform" unique_id=37675964]
+occluder = SubResource("OccluderPolygon2D_2kcbm")
+
+[node name="Sprite2D3" type="Sprite2D" parent="StageLayoutt/Floor/Platforms/Platform" unique_id=299756156]
+z_index = -1
+position = Vector2(-225.99998, 44)
+scale = Vector2(1.35, 1)
+texture = ExtResource("7_y50u8")
+
+[node name="Main" type="StaticBody2D" parent="StageLayoutt/Floor" unique_id=168548156]
+
+[node name="Sprite2D" type="Sprite2D" parent="StageLayoutt/Floor/Main" unique_id=1089555454]
+z_index = -1
+position = Vector2(604, 276)
+texture = ExtResource("8_2kcbm")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="StageLayoutt/Floor/Main" unique_id=360539136]
+position = Vector2(604, 280.5)
+shape = SubResource("RectangleShape2D_2qkqs")
+
+[node name="LightOccluder2D" type="LightOccluder2D" parent="StageLayoutt/Floor/Main" unique_id=2101567110]
+position = Vector2(625, 222)
+occluder = SubResource("OccluderPolygon2D_8l2cq")
+
+[node name="Parallax2D" type="Parallax2D" parent="." unique_id=2030313604]
+z_index = -100
+scroll_scale = Vector2(0.5, 0.5)
+scroll_offset = Vector2(-203, -1223)
+repeat_size = Vector2(1500, 1500)
+repeat_times = 10
+
+[node name="Sprite2D" type="Sprite2D" parent="Parallax2D" unique_id=823698397]
+position = Vector2(0, 16)
+texture = ExtResource("9_2kcbm")
+
+[node name="Parallax2D2" type="Parallax2D" parent="." unique_id=1327893624]
+modulate = Color(1, 1, 1, 0.6)
+z_index = -100
+scroll_scale = Vector2(0.75, 0.75)
+scroll_offset = Vector2(-1140, -320)
+repeat_size = Vector2(1500, 1500)
+repeat_times = 10
+
+[node name="Sprite2D" type="Sprite2D" parent="Parallax2D2" unique_id=1850374492]
+position = Vector2(228, 139)
+texture = ExtResource("7_y50u8")
+
+[node name="Sprite2D2" type="Sprite2D" parent="Parallax2D2" unique_id=1355546392]
+position = Vector2(939, 199)
+texture = ExtResource("7_y50u8")
+
+[node name="Sprite2D3" type="Sprite2D" parent="Parallax2D2" unique_id=245213154]
+position = Vector2(1525, -1087)
+texture = ExtResource("7_y50u8")
+
+[node name="PointLight2D" type="PointLight2D" parent="." unique_id=2141989829]
+position = Vector2(-161, -417)
+scale = Vector2(52.34546, 44.934574)
+energy = 0.6
+shadow_filter = 1
+texture = SubResource("GradientTexture2D_8l2cq")
+offset = Vector2(5.4254947, -0.31156254)
+
+[node name="CanvasModulate" type="CanvasModulate" parent="." unique_id=597061036]
+color = Color(0.5544, 0.68136007, 0.72, 0.74509805)

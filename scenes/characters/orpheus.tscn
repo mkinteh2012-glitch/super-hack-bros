@@ -1,13 +1,42 @@
 [gd_scene format=3 uid="uid://bk4ruuv3s4g5n"]
 
 [ext_resource type="Script" uid="uid://bw2memav71n20" path="res://scripts/player/orpheus.gd" id="1_4x3ae"]
+[ext_resource type="Shader" uid="uid://co63uh70krj2j" path="res://scripts/shaders/specialcharge.gdshader" id="2_aqdih"]
 [ext_resource type="Texture2D" uid="uid://ycysmgp3l3q3" path="res://assets/sprites/OrpheusIdle+Defualt.png" id="2_bm7r2"]
+[ext_resource type="Texture2D" uid="uid://fkx7nft7f2mc" path="res://assets/sprites/OrpheusGroundSmash.png" id="3_b7y40"]
 [ext_resource type="Texture2D" uid="uid://cr6ygqxsnrfns" path="res://assets/sprites/Orph Punch.png" id="3_qpsir"]
 [ext_resource type="Texture2D" uid="uid://chyt05jx1iij4" path="res://assets/sprites/Orph Head Smash.png" id="4_j63j0"]
+[ext_resource type="Texture2D" uid="uid://gtgq40a0phvg" path="res://assets/sprites/Orph walk.png" id="5_2sg1l"]
+[ext_resource type="Texture2D" uid="uid://b6yuaoyxc5or4" path="res://assets/sprites/Orph board.png" id="5_r53g6"]
+[ext_resource type="PackedScene" uid="uid://bvmvjomnxeh8d" path="res://scenes/shadow.tscn" id="9_c1iwk"]
+[ext_resource type="Texture2D" uid="uid://rocyxnwg8x8b" path="res://assets/sprites/Shield.png" id="10_7hndc"]
+[ext_resource type="Script" uid="uid://dgv3p5ollfwr5" path="res://scripts/AI/OrphAI.gd" id="11_wds51"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_c1iwk"]
+shader = ExtResource("2_aqdih")
+shader_parameter/is_active = false
+shader_parameter/glow_color = Color(0.1, 0.6, 1, 1)
+shader_parameter/line_thickness = 1.5
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_j63j0"]
 atlas = ExtResource("2_bm7r2")
 region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_rn8gv"]
+atlas = ExtResource("3_b7y40")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_2qrvu"]
+atlas = ExtResource("3_b7y40")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_cppvo"]
+atlas = ExtResource("3_b7y40")
+region = Rect2(128, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_gjd5v"]
+atlas = ExtResource("3_b7y40")
+region = Rect2(192, 0, 64, 64)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_r53g6"]
 atlas = ExtResource("2_bm7r2")
@@ -45,6 +74,22 @@ region = Rect2(256, 0, 64, 64)
 atlas = ExtResource("3_qpsir")
 region = Rect2(320, 0, 64, 64)
 
+[sub_resource type="AtlasTexture" id="AtlasTexture_pta5y"]
+atlas = ExtResource("5_2sg1l")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_60ofy"]
+atlas = ExtResource("5_2sg1l")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_54thv"]
+atlas = ExtResource("5_2sg1l")
+region = Rect2(128, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_w5g4v"]
+atlas = ExtResource("5_2sg1l")
+region = Rect2(192, 0, 64, 64)
+
 [sub_resource type="AtlasTexture" id="AtlasTexture_c5cre"]
 atlas = ExtResource("4_j63j0")
 region = Rect2(0, 0, 64, 64)
@@ -70,6 +115,23 @@ animations = [{
 "loop": true,
 "name": &"default",
 "speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_rn8gv")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_2qrvu")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_cppvo")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_gjd5v")
+}],
+"loop": false,
+"name": &"down_special",
+"speed": 10.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -110,6 +172,23 @@ animations = [{
 }, {
 "frames": [{
 "duration": 1.0,
+"texture": SubResource("AtlasTexture_pta5y")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_60ofy")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_54thv")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_w5g4v")
+}],
+"loop": true,
+"name": &"run",
+"speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
 "texture": SubResource("AtlasTexture_c5cre")
 }, {
 "duration": 1.0,
@@ -132,16 +211,27 @@ size = Vector2(22, 9)
 [sub_resource type="Gradient" id="Gradient_r53g6"]
 colors = PackedColorArray(0.8810723, 0.8810722, 0.8810722, 1, 0.89411765, 0.89411765, 0.89411765, 0)
 
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_r53g6"]
+size = Vector2(36.90909, 12.545456)
+
+[sub_resource type="OccluderPolygon2D" id="OccluderPolygon2D_aqdih"]
+polygon = PackedVector2Array(-13, 31, 12, 31, 12, 34, -13, 34, -13, 32)
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_7hndc"]
+radius = 35.014282
+
 [node name="Orpheus" type="CharacterBody2D" unique_id=140856988]
+z_index = 5
 collision_layer = 2
 collision_mask = 3
 script = ExtResource("1_4x3ae")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=964887262]
+material = SubResource("ShaderMaterial_c1iwk")
+position = Vector2(-1, 1)
 sprite_frames = SubResource("SpriteFrames_aqdih")
-animation = &"skull_bash"
-frame = 3
-frame_progress = 0.30549648
+animation = &"run"
+frame_progress = 0.08742654
 
 [node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="." unique_id=1515111420]
 polygon = PackedVector2Array(-6, -24, -6, -27, 9, -29, 11, -28, 14, -25, 16, -22, 16, -19, 9, -14, 7, -13, 9, 3, 12, 13, 14, 24, 12, 26, 13, 28, 13, 31, 9, 30, 8, 29, 7, 22, 5, 20, -1, 20, -4, 25, -5, 30, -11, 30, -12, 28, -13, 24, -14, 19, -14, -2, -13, -4, -13, -7, -12, -7, -12, -19, -13, -21, -10, -23, -8, -24)
@@ -177,3 +267,81 @@ gravity = Vector2(0, 0)
 scale_amount_min = 7.0
 scale_amount_max = 9.0
 color_ramp = SubResource("Gradient_r53g6")
+
+[node name="BoardTrail" type="Marker2D" parent="." unique_id=313597465]
+position = Vector2(-73, 17)
+scale = Vector2(2.75, 2.75)
+
+[node name="BoardTrail2" type="Marker2D" parent="." unique_id=1388129907]
+position = Vector2(-76, 51)
+scale = Vector2(2.7499998, 2.7499998)
+
+[node name="Trail" type="CPUParticles2D" parent="." unique_id=906774980]
+z_index = 2
+position = Vector2(-12, 14)
+scale = Vector2(2.75, 2.75)
+emitting = false
+amount = 60
+gravity = Vector2(0, 0)
+scale_amount_min = 7.0
+scale_amount_max = 9.0
+color_ramp = SubResource("Gradient_r53g6")
+
+[node name="Trail2" type="CPUParticles2D" parent="." unique_id=1564227030]
+z_index = 2
+position = Vector2(-12, 14)
+scale = Vector2(2.7499998, 2.7499998)
+emitting = false
+amount = 60
+gravity = Vector2(0, 0)
+scale_amount_min = 7.0
+scale_amount_max = 9.0
+color_ramp = SubResource("Gradient_r53g6")
+
+[node name="OrphBoard" type="Sprite2D" parent="." unique_id=727559479]
+visible = false
+position = Vector2(-5.999999, 10.999999)
+scale = Vector2(3.4375, 3.4375)
+texture = ExtResource("5_r53g6")
+
+[node name="Area2D" type="Area2D" parent="." unique_id=911223045]
+collision_layer = 3
+
+[node name="BoardBox" type="CollisionShape2D" parent="Area2D" unique_id=979845056]
+position = Vector2(-9.750004, 48.75)
+scale = Vector2(2.75, 2.75)
+shape = SubResource("RectangleShape2D_r53g6")
+disabled = true
+
+[node name="SpawnMaker" type="Marker2D" parent="." unique_id=1824242038]
+position = Vector2(25, 31)
+
+[node name="LightOccluder2D" type="LightOccluder2D" parent="." unique_id=410158211]
+occluder = SubResource("OccluderPolygon2D_aqdih")
+
+[node name="shadow" parent="." unique_id=1014011544 instance=ExtResource("9_c1iwk")]
+position = Vector2(-2, 30.000002)
+scale = Vector2(1, 0.3)
+
+[node name="ShieldBox" type="Area2D" parent="." unique_id=853337723]
+position = Vector2(0, -2)
+
+[node name="Sprite2D" type="Sprite2D" parent="ShieldBox" unique_id=774904390]
+position = Vector2(-0.9999995, 3)
+scale = Vector2(4.7, 4.7)
+texture = ExtResource("10_7hndc")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ShieldBox" unique_id=1523588676]
+position = Vector2(-1, 2)
+shape = SubResource("CircleShape2D_7hndc")
+
+[node name="EnemyAI" type="Node2D" parent="." unique_id=745037738]
+script = ExtResource("11_wds51")
+
+[node name="RayCast2D" type="RayCast2D" parent="EnemyAI" unique_id=154442280]
+position = Vector2(21, -1)
+
+[connection signal="body_entered" from="PunchBox" to="." method="_on_punch_box_body_entered"]
+[connection signal="body_entered" from="Hurtbox" to="." method="_on_hurtbox_body_entered"]
+[connection signal="body_entered" from="SkullBox" to="." method="_on_skull_box_body_entered"]
+[connection signal="area_entered" from="Area2D" to="." method="_on_board_box_area_entered"]

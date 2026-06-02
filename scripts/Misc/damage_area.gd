@@ -7,7 +7,7 @@ func _ready() -> void:
 	body_entered.connect(_on_body_entered)
 	body_exited.connect(_on_body_exited)
 	
-	# Handle the 1-second interval loop
+
 	damage_timer = Timer.new()
 	damage_timer.wait_time = 1.0
 	damage_timer.autostart = false

@@ -1,0 +1,231 @@
+[gd_scene format=3 uid="uid://dgpdv6q8prgrb"]
+
+[ext_resource type="PackedScene" uid="uid://cidgbl4s05e8" path="res://scenes/UI/MenuButtons.tscn" id="1_11hie"]
+[ext_resource type="Script" uid="uid://csxolix58sit2" path="res://scripts/Misc/main_menu.gd" id="1_58fj5"]
+[ext_resource type="Texture2D" uid="uid://bpu5fe0c7g21q" path="res://assets/sprites/UI-Sheet.png" id="3_3h7gc"]
+[ext_resource type="FontFile" uid="uid://ba8dsrils7te1" path="res://assets/fonts/PixelifySans-VariableFont_wght.ttf" id="3_4vh8y"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_4vh8y"]
+atlas = ExtResource("3_3h7gc")
+region = Rect2(5760, 0, 1152, 648)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_b1p1q"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_4vh8y")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}]
+
+[node name="Control" type="Control" unique_id=1948499161]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_58fj5")
+
+[node name="ColorRect" type="ColorRect" parent="." unique_id=54410655]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.834164, 0.93005365, 0.9155891, 1)
+
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=2032041916]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 40
+theme_override_constants/margin_top = 40
+theme_override_constants/margin_right = 40
+theme_override_constants/margin_bottom = 40
+
+[node name="MenuButtons" type="Control" parent="." unique_id=300059096]
+anchors_preset = 0
+offset_top = 330.0
+offset_right = 40.0
+offset_bottom = 370.0
+mouse_filter = 2
+
+[node name="FightButton" parent="MenuButtons" unique_id=1557350800 instance=ExtResource("1_11hie")]
+layout_mode = 0
+offset_left = 580.0
+offset_top = 0.0
+offset_right = 620.0
+offset_bottom = 40.0
+mode_description = "Duke it out with a CPU or friend!
+"
+
+[node name="OnlineButton" parent="MenuButtons" unique_id=343260341 instance=ExtResource("1_11hie")]
+layout_mode = 0
+offset_left = 580.0
+offset_top = 0.0
+offset_right = 620.0
+offset_bottom = 40.0
+menu_animation_name = "Online"
+mode_description = "Fight online in public or private severs!"
+
+[node name="OptionsButton" parent="MenuButtons" unique_id=574246026 instance=ExtResource("1_11hie")]
+layout_mode = 0
+offset_left = 580.0
+offset_top = 0.0
+offset_right = 620.0
+offset_bottom = 40.0
+menu_animation_name = "Options"
+mode_description = "Adjust controls or settings."
+
+[node name="GamesMoreButton" parent="MenuButtons" unique_id=1569788079 instance=ExtResource("1_11hie")]
+layout_mode = 0
+offset_left = 580.0
+offset_top = 0.0
+offset_right = 620.0
+offset_bottom = 40.0
+menu_animation_name = "Games and More"
+mode_description = "Hone your skill or train a new CPU"
+
+[node name="VaultButton" parent="MenuButtons" unique_id=124338668 instance=ExtResource("1_11hie")]
+layout_mode = 0
+offset_left = 580.0
+offset_top = 0.0
+offset_right = 620.0
+offset_bottom = 40.0
+menu_animation_name = "Vault"
+mode_description = "See your records achievments and recent matches here!"
+
+[node name="DescriptionLabel" type="Label" parent="." unique_id=655022200]
+z_index = 1
+layout_mode = 0
+offset_left = 10.0
+offset_top = 605.0
+offset_right = 275.0
+offset_bottom = 635.0
+theme_override_fonts/font = ExtResource("3_4vh8y")
+theme_override_font_sizes/font_size = 24
+text = "_________________________"
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1524259553]
+position = Vector2(580, 320)
+sprite_frames = SubResource("SpriteFrames_b1p1q")
+
+[node name="GamemodeLabels" type="Control" parent="." unique_id=449799332]
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+mouse_filter = 2
+
+[node name="FightLabel" type="Label" parent="GamemodeLabels" unique_id=1938073426]
+z_index = 1
+layout_mode = 0
+offset_left = 264.0
+offset_top = 214.0
+offset_right = 529.0
+offset_bottom = 302.0
+theme_override_fonts/font = ExtResource("3_4vh8y")
+theme_override_font_sizes/font_size = 72
+text = "Fight"
+
+[node name="OnlineLabel" type="Label" parent="GamemodeLabels" unique_id=1479439016]
+z_index = 1
+layout_mode = 0
+offset_left = 264.0
+offset_top = 425.0
+offset_right = 529.0
+offset_bottom = 604.0
+theme_override_fonts/font = ExtResource("3_4vh8y")
+theme_override_font_sizes/font_size = 72
+text = "Online
+"
+
+[node name="GamesMoreLabel" type="Label" parent="GamemodeLabels" unique_id=575661150]
+z_index = 1
+layout_mode = 0
+offset_left = 774.0
+offset_top = 351.0
+offset_right = 1039.0
+offset_bottom = 530.0
+theme_override_fonts/font = ExtResource("3_4vh8y")
+theme_override_font_sizes/font_size = 48
+text = "Games
+& More"
+
+[node name="VaultLabel" type="Label" parent="GamemodeLabels" unique_id=1984066596]
+z_index = 1
+layout_mode = 0
+offset_left = 985.0
+offset_top = 343.0
+offset_right = 1250.0
+offset_bottom = 522.0
+theme_override_fonts/font = ExtResource("3_4vh8y")
+theme_override_font_sizes/font_size = 40
+text = "Vault"
+
+[node name="SettingsLabel" type="Label" parent="GamemodeLabels" unique_id=131870263]
+z_index = 1
+layout_mode = 0
+offset_left = 985.0
+offset_top = 550.0
+offset_right = 1250.0
+offset_bottom = 729.0
+theme_override_fonts/font = ExtResource("3_4vh8y")
+theme_override_font_sizes/font_size = 24
+text = "Options
+"
+
+[node name="FightSubMenu" type="Control" parent="." unique_id=461874284]
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="FightButton" parent="FightSubMenu" unique_id=1030721567 instance=ExtResource("1_11hie")]
+layout_mode = 0
+offset_left = 580.0
+offset_top = 250.0
+offset_right = 620.0
+offset_bottom = 290.0
+menu_animation_name = "Fight_Fight"
+mode_description = "Jump Straight into fighting!"
+
+[node name="FightButton2" parent="FightSubMenu" unique_id=935335978 instance=ExtResource("1_11hie")]
+layout_mode = 0
+offset_left = 580.0
+offset_top = 250.0
+offset_right = 620.0
+offset_bottom = 290.0
+menu_animation_name = "Fight_Custom"
+mode_description = "Adjust rules like time stock or item spawn!"
+
+[node name="FightLabel" type="Label" parent="FightSubMenu" unique_id=1177041703]
+z_index = 1
+layout_mode = 0
+offset_left = 400.0
+offset_top = 150.0
+offset_right = 665.0
+offset_bottom = 266.0
+theme_override_fonts/font = ExtResource("3_4vh8y")
+theme_override_font_sizes/font_size = 96
+text = "Fight"
+
+[node name="OnlineLabel" type="Label" parent="FightSubMenu" unique_id=1073659153]
+z_index = 1
+layout_mode = 0
+offset_left = 264.0
+offset_top = 425.0
+offset_right = 529.0
+offset_bottom = 604.0
+theme_override_fonts/font = ExtResource("3_4vh8y")
+theme_override_font_sizes/font_size = 72
+text = "Custom Settings
+"

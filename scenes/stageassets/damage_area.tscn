@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://d3bbf3r8lnvl8" path="res://scripts/Misc/damage_area.gd" id="1_q0rrr"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_62mdd"]
-size = Vector2(20568, 64)
+size = Vector2(20568, 91)
 
 [node name="DamageArea" type="Area2D" unique_id=15277436]
 collision_layer = 3
@@ -11,6 +11,6 @@ collision_mask = 3
 script = ExtResource("1_q0rrr")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1059787965]
-position = Vector2(2772, -240)
+position = Vector2(2772, -253.5)
 shape = SubResource("RectangleShape2D_62mdd")
 debug_color = Color(0.6039216, 0.5411765, 0, 1)
