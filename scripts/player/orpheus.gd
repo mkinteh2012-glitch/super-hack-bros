@@ -1,5 +1,15 @@
 extends CharacterBody2D
 
+# --- 🌐 NETWORK SYNCHRONIZATION VARIABLES ---
+# The MultiplayerSynchronizer node will monitor and replicate these variables automatically
+@export var sync_direction: float = 0.0
+@export var sync_jump_pressed: bool = false
+@export var sync_attack_pressed: bool = false
+@export var sync_special_pressed: bool = false
+@export var sync_shield_held: bool = false
+@export var sync_holding_up: bool = false
+@export var sync_moving_sideways: bool = false
+
 # --- Nodes and variables ---
 @onready var sprite = $AnimatedSprite2D
 @onready var hitbox = $CollisionPolygon2D
@@ -9,6 +19,7 @@ extends CharacterBody2D
 var max_super_meter: float = 100.0
 var current_super_meter: float = 100.0
 var super_meter_ui: ProgressBar = null
+var player_name: String = ""
 
 @onready var punch_box = $PunchBox
 @onready var punch_hitbox = $PunchBox/PunchHitbox
@@ -67,7 +78,7 @@ const SPEED_BUFF_MULTIPLIER: float = 1.20
 
 var is_shipping: bool = false
 var board_dash_dir: float = 1.0
-var damage_percent: float = 0.0 
+@export var damage_percent: float = 0.0 
 
 var gravity = ProjectSettings.get_setting("physics/2d/default_gravity")
 var is_attacking: bool = false
@@ -110,6 +121,7 @@ var combo_hit_count: int = 0
 var input_buffer: Array[Dictionary] = []
 const BUFFER_WINDOW_MS = 130 
 
+
 func _ready():
 	print("[DEBUG] Player spawned into the scene tree with the exact name: ", name)
 	sprite.animation_finished.connect(_on_animation_finished)
@@ -129,21 +141,52 @@ func _ready():
 			sprite.material = sprite.material.duplicate(true)
 			
 	_setup_collision_layers()
-	
-	# Run our controller determination setup
 	_determine_control_type()
 
-# --- ⚙️ CONTROL ROUTING ENGINE ---
-func _determine_control_type() -> void:
-	# Format action strings using player_id mapping (e.g. p1_left, p2_shield)
-	input_left = "p%d_left" % player_id
-	input_right = "p%d_right" % player_id
-	input_up = "p%d_up" % player_id
-	input_attack = "p%d_attack" % player_id
-	input_special = "p%d_special" % player_id 
-	input_shield = "p%d_shield" % player_id
+func setup_fighter(id: int, character_name: String, bot_mode: bool) -> void:
+	if "character_size_multiplier" in GlobalGameData:
+		var size_factor = GlobalGameData.character_size_multiplier
+		scale = Vector2(size_factor, size_factor)
+	player_id = id
+	player_name = character_name
+	is_ai_controlled = bot_mode
+	_determine_control_type()
+	if has_node("OverheadNameLabel"):
+		$OverheadNameLabel.text = player_name
 
-	# Reset physical input values to avoid drift patterns or input sticking
+func _determine_control_type() -> void:
+	if "online" in GlobalGameData and GlobalGameData.online:
+		if is_multiplayer_authority():
+			input_left = "p1_left"
+			input_right = "p1_right"
+			input_up = "p1_up"
+			input_attack = "p1_attack"
+			input_special = "p1_special" 
+			input_shield = "p1_shield"
+			is_ai_controlled = false
+			print("Online Node '%s' has network authority. Bound to Local P1 Input Hardware Maps." % name)
+		else:
+			input_left = ""
+			input_right = ""
+			input_up = ""
+			input_attack = ""
+			input_special = "" 
+			input_shield = ""
+			is_ai_controlled = false
+			print("Online Node '%s' belongs to remote peer. Input maps bypassed." % name)
+	else:
+		input_left = "p%d_left" % player_id
+		input_right = "p%d_right" % player_id
+		input_up = "p%d_up" % player_id
+		input_attack = "p%d_attack" % player_id
+		input_special = "p%d_special" % player_id 
+		input_shield = "p%d_shield" % player_id
+
+		if is_ai_controlled:
+			print("Offline Node '%s' (Player ID: %d) routed to AUTOMATED AI CONTROL." % [name, player_id])
+		else:
+			print("Offline Node '%s' (Player ID: %d) routed to HUMAN HARDWARE INPUT via mapping prefixes: '%s_'" % [name, player_id, "p" + str(player_id)])
+
 	input_left_strength = 0.0
 	input_right_strength = 0.0
 	input_jump_pressed = false
@@ -151,40 +194,63 @@ func _determine_control_type() -> void:
 	input_special_pressed = false
 	input_shield_held = false
 
-	# some debug stuff
-	if is_ai_controlled:
-		print("Node '%s' (Player ID: %d) routed to AUTOMATED AI CONTROL." % [name, player_id])
-	else:
-		print("Node '%s' (Player ID: %d) routed to HUMAN HARDWARE INPUT via mapping prefixes: '%s_'" % [name, player_id, "p" + str(player_id)])
-
 func _physics_process(delta):
+	if GlobalGameData.online and (multiplayer.multiplayer_peer == null or not is_instance_valid(multiplayer.multiplayer_peer)):
+		return
+		
+	if input_left == "" and not ("online" in GlobalGameData and GlobalGameData.online):
+		_determine_control_type()
 	queue_redraw()
 
-	# 🚨 VELOCITY GUARD
 	if is_nan(velocity.x) or is_inf(velocity.x): velocity.x = 0.0
 	if is_nan(velocity.y) or is_inf(velocity.y): velocity.y = 0.0
 
-	#inputs and that kinda stuff
-	if not is_ai_controlled:
-		input_left_strength = Input.get_action_strength(input_left)
-		input_right_strength = Input.get_action_strength(input_right)
-		input_jump_pressed = Input.is_action_just_pressed(input_up)
-		input_attack_pressed = Input.is_action_just_pressed(input_attack)
-		input_special_pressed = Input.is_action_just_pressed(input_special)
-		input_shield_held = Input.is_action_pressed(input_shield)
+	# =========================================================================
+	# 🔴 STEP 1: GATHER INPUT DATA (ONLY AUTHORIZED CONTROLLER COMPUTES THIS)
+	# =========================================================================
+	if "online" in GlobalGameData and GlobalGameData.online:
+		if is_multiplayer_authority():
+			# Owner parses local hardware hooks and saves into network-replicated states
+			input_left_strength = Input.get_action_strength(input_left)
+			input_right_strength = Input.get_action_strength(input_right)
+			
+			sync_direction = input_right_strength - input_left_strength
+			sync_jump_pressed = Input.is_action_just_pressed(input_up)
+			sync_attack_pressed = Input.is_action_just_pressed(input_attack)
+			sync_special_pressed = Input.is_action_just_pressed(input_special)
+			sync_shield_held = Input.is_action_pressed(input_shield)
+			sync_holding_up = Input.is_action_pressed(input_up)
+			sync_moving_sideways = (input_left_strength > 0.1 or input_right_strength > 0.1)
 	else:
-		# gets stored input and does them
-		if input_jump_pressed:    buffer_input("jump")
-		if input_attack_pressed:  buffer_input("attack")
-		if input_special_pressed: buffer_input("special")
+		# Offline processing flow
+		if not is_ai_controlled:
+			input_left_strength = Input.get_action_strength(input_left)
+			input_right_strength = Input.get_action_strength(input_right)
+			sync_direction = input_right_strength - input_left_strength
+			sync_jump_pressed = Input.is_action_just_pressed(input_up)
+			sync_attack_pressed = Input.is_action_just_pressed(input_attack)
+			sync_special_pressed = Input.is_action_just_pressed(input_special)
+			sync_shield_held = Input.is_action_pressed(input_shield)
+			sync_holding_up = Input.is_action_pressed(input_up)
+			sync_moving_sideways = (input_left_strength > 0.1 or input_right_strength > 0.1)
+		else:
+			if input_jump_pressed:    buffer_input("jump")
+			if input_attack_pressed:  buffer_input("attack")
+			if input_special_pressed: buffer_input("special")
+			sync_direction = input_right_strength - input_left_strength
+			sync_jump_pressed = input_jump_pressed
+			sync_attack_pressed = input_attack_pressed
+			sync_special_pressed = input_special_pressed
+			sync_shield_held = input_shield_held
+			sync_holding_up = input_jump_pressed
+			sync_moving_sideways = (abs(sync_direction) > 0.1)
 
-	#makes the AI a bit better by stoping attack follow trough sometimes
-	if is_ai_controlled and input_special_pressed and (input_jump_pressed or velocity.y > 0):
+	# =========================================================================
+	# 🔵 STEP 2: GAMEPLAY EXECUTION MATRIX (RUNS SIMULTANEOUSLY ON BOTH SIDES)
+	# =========================================================================
+	if is_ai_controlled and sync_special_pressed and (sync_jump_pressed or velocity.y > 0):
 		if is_attacking and not is_skull_bashing and not is_charging_bash:
 			is_attacking = false 
-			
-	var is_holding_up: bool = input_jump_pressed if is_ai_controlled else Input.is_action_pressed(input_up)
-	var is_moving_sideways: bool = (input_left_strength > 0.1 or input_right_strength > 0.1)
 
 	# hitstun stuff
 	if hitstun_frames > 0:
@@ -196,20 +262,19 @@ func _physics_process(delta):
 		if launch_trail and velocity.length() > 500.0:
 			launch_trail.emitting = true
 
-		if not is_on_floor():
+		if not is_on_floor():    
 			if velocity.y > 0:
 				velocity.y += gravity * fall_gravity_multiplier * delta
 			else:
 				velocity.y += gravity * base_gravity_multiplier * delta
 		
-		var di_direction = input_right_strength - input_left_strength
-		if di_direction != 0:
-			velocity.x += di_direction * DI_STRENGTH * delta * 60.0
+		if sync_direction != 0:
+			velocity.x += sync_direction * DI_STRENGTH * delta * 60.0
 		
 		velocity.x = move_toward(velocity.x, 0.0, knockback_resistance * delta)
-		
+		velocity.y = clamp(velocity.y, -3000.0, 800.0)
 		move_and_slide()
-		queue_animations(di_direction)
+		queue_animations(sync_direction)
 		_assert_bounds_safety()
 		return
 
@@ -219,8 +284,8 @@ func _physics_process(delta):
 		move_and_slide()
 		return
 
-	# --- 🛡️ SHIELD VIRTUAL INPUT PROCESSING ---
-	if input_shield_held and not is_in_knockback and not is_attacking:
+	# --- 🛡️ SHIELD PROCESSING USING SYNCED VALUES ---
+	if sync_shield_held and not is_in_knockback and not is_attacking:
 		if current_shield_health > 10.0: 
 			is_shielding = true
 		else:
@@ -285,39 +350,44 @@ func _physics_process(delta):
 	if not is_in_knockback and hitstun_frames <= 0:
 		buffered_action = _clean_and_get_buffered_input()
 		
-	if buffered_action == "jump":    input_jump_pressed = true
-	if buffered_action == "attack":  input_attack_pressed = true
-	if buffered_action == "special": input_special_pressed = true
-	
-	if is_ai_controlled:
-		input_jump_pressed = (buffered_action == "jump")
-		input_attack_pressed = (buffered_action == "attack")
-		input_special_pressed = (buffered_action == "special")
+	if buffered_action == "jump":    sync_jump_pressed = true
+	if buffered_action == "attack":  sync_attack_pressed = true
+	if buffered_action == "special": sync_special_pressed = true
+
+	# Local owner resets state consumption flags
+	var take_jump = sync_jump_pressed
+	var take_attack = sync_attack_pressed
+	var take_special = sync_special_pressed
+
+	if is_multiplayer_authority() or not GlobalGameData.online:
+		if sync_jump_pressed: sync_jump_pressed = false
+		if sync_attack_pressed: sync_attack_pressed = false
+		if sync_special_pressed: sync_special_pressed = false
 
 	# 1. SUPER MOVE
-	if input_attack_pressed and input_special_pressed and not is_in_knockback and not is_attacking:
+	if take_attack and take_special and not is_in_knockback and not is_attacking:
 		trigger_super_ship_move()
-		input_attack_pressed = false
-		input_special_pressed = false
+		take_attack = false
+		take_special = false
 
-	# 2. UP SPECIAL (SKULL BASH COUNTER PRIORITY FLIP)
-	elif input_special_pressed and is_holding_up and not is_in_knockback and (not is_attacking or (is_attacking and not is_charging_bash and not is_skull_bashing)):
+	# 2. UP SPECIAL (SKULL BASH)
+	elif take_special and sync_holding_up and not is_in_knockback and (not is_attacking or (is_attacking and not is_charging_bash and not is_skull_bashing)):
 		if not is_on_floor() and air_skull_bash_count >= max_air_skull_bashes:
-			input_special_pressed = false
+			pass
 		else:
 			if not is_on_floor():
 				air_skull_bash_count += 1
 				print("[COMBAT] Air Up-Special counter allowed. Count: ", air_skull_bash_count)
 			trigger_skull_bash_charge()
-			input_special_pressed = false
-			input_jump_pressed = false
+			take_special = false
+			take_jump = false
 
 	# 3. SIDE SPECIAL (LAG SPIKE)
-	elif input_special_pressed and is_moving_sideways and not is_in_knockback and not is_attacking:
-		input_special_pressed = false
-		if input_left_strength > input_right_strength:
+	elif take_special and sync_moving_sideways and not is_in_knockback and not is_attacking:
+		take_special = false
+		if sync_direction < 0:
 			$AnimatedSprite2D.flip_h = true
-		elif input_right_strength > input_left_strength:
+		elif sync_direction > 0:
 			$AnimatedSprite2D.flip_h = false
 		
 		if is_ai_controlled:
@@ -326,25 +396,22 @@ func _physics_process(delta):
 			down_special_buffer_timer = BUFFER_DURATION
 			
 	# 4. BASIC ATTACK (PUNCH)
-	elif input_attack_pressed and not is_in_knockback and not is_attacking and sprite.animation != "punch":
+	elif take_attack and not is_in_knockback and not is_attacking and sprite.animation != "punch":
 		trigger_combo_strike()
-		input_attack_pressed = false
+		take_attack = false
 	
 	# --- 🏃‍♂️ MOVEMENT EXECUTION LAYER ---
-	if input_jump_pressed and is_on_floor() and not is_attacking and not is_in_knockback:
+	if take_jump and is_on_floor() and not is_attacking and not is_in_knockback:
 		velocity.y = Jump_Velocity
-		input_jump_pressed = false 
 	
-	var direction = input_right_strength - input_left_strength
-
 	if not is_attacking and not is_in_knockback:
-		if direction != 0:
-			if sign(direction) != sign(velocity.x) and abs(velocity.x) > 10.0:
+		if sync_direction != 0:
+			if sign(sync_direction) != sign(velocity.x) and abs(velocity.x) > 10.0:
 				velocity.x = move_toward(velocity.x, 0.0, friction * delta)
 			else:
-				velocity.x = move_toward(velocity.x, direction * speed, acceleration * delta)
-			sprite.flip_h = (direction < 0)
-			_flip_hitbox_directions(direction < 0)
+				velocity.x = move_toward(velocity.x, sync_direction * speed, acceleration * delta)
+			sprite.flip_h = (sync_direction < 0)
+			_flip_hitbox_directions(sync_direction < 0)
 		else:
 			velocity.x = move_toward(velocity.x, 0.0, friction * delta)
 	
@@ -352,13 +419,13 @@ func _physics_process(delta):
 		if is_charging_bash:
 			velocity.x = move_toward(velocity.x, 0.0, friction * 0.2 * delta)
 		elif is_skull_bashing:
-			if input_attack_pressed or input_special_pressed:
+			if take_attack or take_special:
 				end_skull_bash_state()
-			if direction != 0:
+			if sync_direction != 0:
 				var skull_bash_drift_speed = speed * 0.8
-				sprite.flip_h = (direction < 0)
-				_flip_hitbox_directions(direction < 0)
-				velocity.x = move_toward(velocity.x, direction * skull_bash_drift_speed, acceleration * delta)
+				sprite.flip_h = (sync_direction < 0)
+				_flip_hitbox_directions(sync_direction < 0)
+				velocity.x = move_toward(velocity.x, sync_direction * skull_bash_drift_speed, acceleration * delta)
 			else:
 				velocity.x = move_toward(velocity.x, 0.0, friction * 0.3 * delta)
 		else:
@@ -369,7 +436,7 @@ func _physics_process(delta):
 		execute_down_special()
 
 	move_and_slide()
-	queue_animations(direction)
+	queue_animations(sync_direction)
 	_assert_bounds_safety()
 
 	if is_shipping:
@@ -377,7 +444,7 @@ func _physics_process(delta):
 		if board_trail_2 and marker_2: board_trail_2.global_position = marker_2.global_position
 		velocity.x = board_dash_dir * 950.0
 		velocity.y = 0.0
-
+		
 # 🚨 EMERGENCY TRACKING RESCUE OUT OF BOUNDS
 func _assert_bounds_safety() -> void:
 	if abs(global_position.x) > 8000.0 or abs(global_position.y) > 8000.0:
@@ -385,18 +452,26 @@ func _assert_bounds_safety() -> void:
 		global_position = Vector2(0, -200)
 		velocity = Vector2.ZERO
 		die()
-
+		
+var is_dead = false
 func die() -> void:
+	# 🛑 Safety latch: If already dead, break out immediately to avoid losing extra stocks!
+	if "is_dead" in self and is_dead: 
+		return 
+	is_dead = true
+
 	print("💀 Player ", player_id, " has been knocked out!")
 	set_physics_process(false)
 	velocity = Vector2.ZERO
 
+	# Safely disable active combat hitboxes and shield collision layers
 	if punch_hitbox: punch_hitbox.set_deferred("disabled", true)
 	if skull_hitbox: skull_hitbox.set_deferred("disabled", true)
 	if board_box: board_box.set_deferred("disabled", true)
 	if shield_collision: shield_collision.set_deferred("disabled", true)
 	if launch_trail: launch_trail.emitting = false
 
+	# Visual blast-away polish: Flash white, then fade out smoothly
 	sprite.modulate = Color(2.0, 2.0, 2.0, 1.0)
 	await get_tree().create_timer(0.08).timeout
 	
@@ -404,6 +479,7 @@ func die() -> void:
 	death_tween.tween_property(sprite, "modulate", Color(1, 1, 1, 0.0), 0.35)
 	await death_tween.finished
 	
+	# Complete character concealment until the StockManager's rebirth sequence kicks in
 	visible = false
 	sprite.modulate = Color(1, 1, 1, 1.0)
 
@@ -578,19 +654,43 @@ func _on_skull_box_area_entered(area):
 			opponent.universal_take_damage(10.0, knockback_dir, 0.0, -270.0, 4.0, 1.1, true)
 			charge_super_meter(8.0) 
 				
+# --- 🌐 NETWORK-READY DAMAGE ENGINE ---
 func universal_take_damage(damage: float, hit_dir: float, base_kb_x: float, base_kb_y: float, kb_scaling: float, hitstun_mult: float = 1.0, is_special: bool = false):
-	
+	# If we are online and we don't own this character, forward this call to the true owner!
+	if GlobalGameData.online and not is_multiplayer_authority():
+		rpc_id(get_multiplayer_authority(), "_rpc_apply_damage", damage, hit_dir, base_kb_x, base_kb_y, kb_scaling, hitstun_mult, is_special)
+		return
+
+	# Otherwise, we are either offline or we ARE the owner. Execute the damage locally!
+	_execute_damage_calculations(damage, hit_dir, base_kb_x, base_kb_y, kb_scaling, hitstun_mult, is_special)
+
+
+# 📡 Remote process proxy hook
+@rpc("any_peer", "call_remote", "reliable")
+func _rpc_apply_damage(damage: float, hit_dir: float, base_kb_x: float, base_kb_y: float, kb_scaling: float, hitstun_mult: float, is_special: bool):
+	_execute_damage_calculations(damage, hit_dir, base_kb_x, base_kb_y, kb_scaling, hitstun_mult, is_special)
+
+
+# 💥 Core Internal Damage Logic
+func _execute_damage_calculations(damage: float, hit_dir: float, base_kb_x: float, base_kb_y: float, kb_scaling: float, hitstun_mult: float = 1.0, is_special: bool = false):
+	# --- 💥 1. APPLY DAMAGE MULTIPLIER IMMEDIATELY ---
+	var global_dmg_mult: float = GlobalGameData.damage_multiplier if "damage_multiplier" in GlobalGameData else 1.0
+	damage *= global_dmg_mult
+
 	if is_shielding and not is_special:
 		current_shield_health -= damage * 1.5
 		print("🛡️ Shield Intercepted Hit! Health Remaining: ", current_shield_health)
 		return
 
+	# --- 🔄 2. ACCUMULATE MODIFIED PERCENT ---
 	if is_in_overdrive:
 		damage *= DAMAGE_BUFF_MULTIPLIER
 		damage_percent += damage
 	else:
 		damage_percent += damage
-	charge_super_meter(2.0) 
+		
+	if has_method("charge_super_meter"):
+		charge_super_meter(2.0) 
 	print("[HIT] Player ", player_id, " took ", damage, "%. Total: ", damage_percent, "%")
 	
 	var heavy_strike_check: bool = (abs(base_kb_y) > 250.0 or damage > 10.0)
@@ -648,7 +748,7 @@ func universal_take_damage(damage: float, hit_dir: float, base_kb_x: float, base
 		
 		if punch_hitbox: punch_hitbox.set_deferred("disabled", true)
 		if skull_hitbox: skull_hitbox.set_deferred("disabled", true)
-
+		
 func _flip_hitbox_directions(is_flipped: bool):
 	var flip_scale = -1.0 if is_flipped else 1.0
 	if hitbox: hitbox.scale.x = flip_scale
@@ -668,6 +768,10 @@ func trigger_super_ship_move() -> void:
 	if current_super_meter < max_super_meter or is_shipping: 
 		return
 	
+	# 🌐 NETWORK PROTECTION: Movement calculations must happen on the true owner's instance
+	if GlobalGameData.online and not is_multiplayer_authority():
+		return
+
 	is_attacking = true
 	is_shipping = true
 	current_super_meter = 0.0
@@ -677,48 +781,11 @@ func trigger_super_ship_move() -> void:
 	set_physics_process(false) 
 	block_shader_updates = true
 	
-	var main_camera = get_viewport().get_camera_2d()
-	var original_zoom: Vector2 = Vector2(1.0, 1.0)
-	var original_position: Vector2 = Vector2.ZERO 
-	var original_parent: Node = null
-
-	if main_camera:
-		original_zoom = main_camera.zoom
-		original_position = main_camera.global_position 
-		original_parent = main_camera.get_parent()
-
-		original_parent.remove_child(main_camera)
-		add_child(main_camera)
-		main_camera.position = Vector2.ZERO
-		main_camera.zoom = original_zoom * 2.0
-		
-	var canvas_layer = CanvasLayer.new()
-	canvas_layer.name = "SuperDimLayer"
-	
-	var dim_overlay = ColorRect.new()
-	dim_overlay.name = "DimOverlay"
-	dim_overlay.color = Color(0.227, 0.227, 0.227, 0.0)
-	dim_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-	dim_overlay.anchors_preset = Control.PRESET_FULL_RECT
-	dim_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE)
-
-	canvas_layer.add_child(dim_overlay)
-	get_tree().root.add_child(canvas_layer)
-
-	var fade_in_tween = create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
-	fade_in_tween.tween_property(dim_overlay, "color:a", 0.75, 0.15).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	
-	var parent_node = get_parent()
-	Engine.time_scale = 0.12  
-	
-	if orph_board: 
-		orph_board.flip_h = sprite.flip_h
-		orph_board.visible = false
-		
-	var marker_side = -1.0 if sprite.flip_h else 1.0
-	if marker_1: marker_1.position.x = abs(marker_1.position.x) * -marker_side
-	if marker_2: marker_2.position.x = abs(marker_2.position.x) * -marker_side
+	# Broadcast cinematic presentation mechanics to everyone simultaneously
+	if GlobalGameData.online:
+		rpc("_rpc_broadcast_super_cinematics", board_dash_dir)
+	else:
+		_execute_local_super_cinematics(board_dash_dir)
 	
 	var cutscene_tween = create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
 	cutscene_tween.set_speed_scale(1.0) 
@@ -727,10 +794,11 @@ func trigger_super_ship_move() -> void:
 	cutscene_tween.tween_property(sprite, "offset:y", -45.0, 0.1).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	cutscene_tween.tween_property(sprite, "offset:y", -27.0, 0.07).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	
-	await cutscene_tween.finished
+	# Use wall-clock timers instead of global engine slowdowns to avoid ENet connection timeouts
+	await get_tree().create_timer(0.21, true, false, true).timeout
 	
 	global_position.y += -27.0 
-	is_hovering = true  
+	is_hovering = true   
 	sprite.offset.y = 0.0      
 	
 	if orph_board: 
@@ -745,38 +813,54 @@ func trigger_super_ship_move() -> void:
 	if board_box: 
 		board_box.set_deferred("disabled", false)
 		
-	if main_camera and main_camera.has_method("start_shake"):
-		main_camera.start_shake(4.0, 5.0)
 	await get_tree().create_timer(0.08, true, false, true).timeout
 		
 	set_physics_process(true) 
-	Engine.time_scale = 1.0
-
 	velocity.x = board_dash_dir * 1100.0 
 	velocity.y = 0.0 
 	
-	if main_camera and main_camera.has_method("start_shake"):
-		main_camera.start_shake(28.0, 35.0) 
-		
 	await get_tree().create_timer(0.6).timeout
+	
+	var parent_node = get_parent()
+	if GlobalGameData.online:
+		rpc("_rpc_broadcast_super_cleanup")
+	else:
+		_clean_up_final_smash_visuals(parent_node, 0.0)
+
+func _execute_local_super_cinematics(_dash_direction: float) -> void:
+	var main_camera = get_viewport().get_camera_2d()
+	if main_camera and is_multiplayer_authority():
+		main_camera.zoom = main_camera.zoom * 2.0
+		main_camera.start_shake(4.0, 5.0)
+		get_tree().create_timer(0.21).timeout.connect(func(): main_camera.start_shake(28.0, 35.0))
+
+	if not get_tree().root.has_node("SuperDimLayer"):
+		var canvas_layer = CanvasLayer.new()
+		canvas_layer.name = "SuperDimLayer"
 		
-	if main_camera and original_parent:
-		var final_world_pos = main_camera.global_position
+		var dim_overlay = ColorRect.new()
+		dim_overlay.name = "DimOverlay"
+		dim_overlay.color = Color(0.227, 0.227, 0.227, 0.0)
+		dim_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		dim_overlay.anchors_preset = Control.PRESET_FULL_RECT
+		dim_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE)
 
-		remove_child(main_camera)
-		original_parent.add_child(main_camera)
-		main_camera.global_position = final_world_pos
+		canvas_layer.add_child(dim_overlay)
+		get_tree().root.add_child(canvas_layer)
 
-		var cam_tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-		cam_tween.tween_property(main_camera, "global_position", original_position, 0.3) 
-		cam_tween.tween_property(main_camera, "zoom", original_zoom, 0.4) 
+		var fade_in_tween = create_tween()
+		fade_in_tween.tween_property(dim_overlay, "color:a", 0.75, 0.15).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
-		await cam_tween.finished
-
-	_clean_up_final_smash_visuals(parent_node, 0.0)
+	if orph_board: 
+		orph_board.flip_h = sprite.flip_h
+		orph_board.visible = false
+		
+	var marker_side = -1.0 if sprite.flip_h else 1.0
+	if marker_1: marker_1.position.x = abs(marker_1.position.x) * -marker_side
+	if marker_2: marker_2.position.x = abs(marker_2.position.x) * -marker_side
 
 func _clean_up_final_smash_visuals(target_world_node: Node, delay: float) -> void:
-	await get_tree().create_timer(delay + 0.25).timeout
+	await get_tree().create_timer(delay).timeout
 	
 	if is_instance_valid(target_world_node):
 		var tween = create_tween()
@@ -801,7 +885,8 @@ func _clean_up_final_smash_visuals(target_world_node: Node, delay: float) -> voi
 	is_shipping = false
 	is_hovering = false
 	block_shader_updates = false
-	set_charge_glow(false)
+	if has_method("set_charge_glow"):
+		set_charge_glow(false)
 	
 func end_super_ship_move() -> void:
 	is_shipping = false
@@ -815,22 +900,44 @@ func end_super_ship_move() -> void:
 		board_box.set_deferred("disabled", true)
 	
 	velocity.x = move_toward(velocity.x, 0.0, friction)
-	_deactivate_overdrive_buffs()
+	if has_method("_deactivate_overdrive_buffs"):
+		_deactivate_overdrive_buffs()
 
 func _on_board_box_area_entered(area: Area2D) -> void:
 	if area.name == "Hurtbox":
 		var opponent = area.get_parent()
 		if opponent != self and opponent.has_method("universal_take_damage"):
 			var launch_dir = board_dash_dir
+			
 			opponent.universal_take_damage(45.0, launch_dir, 2400.0, -450.0, 3.5, 2.5, true)
 			
-			Engine.time_scale = 0.05
-			await get_tree().create_timer(0.15 * 0.05).timeout
-			Engine.time_scale = 1.0
+			if GlobalGameData.online:
+				rpc("_rpc_local_hitstop_freeze")
+			else:
+				_execute_local_hitstop_freeze()
+				
 			position.x -= launch_dir * 15.0
 			end_super_ship_move()
 			print("[FINAL SMASH] Direct PCB Hoverboard impact! Opponent obliterated.")
 
+func _execute_local_hitstop_freeze() -> void:
+	if sprite: sprite.pause()
+	await get_tree().create_timer(0.15, true, false, true).timeout
+	if sprite: sprite.play()
+
+# 📡 CINEMATIC SYSTEM BACKEND RPC CALLS
+@rpc("any_peer", "call_local", "reliable")
+func _rpc_broadcast_super_cinematics(dash_direction: float) -> void:
+	_execute_local_super_cinematics(dash_direction)
+
+@rpc("any_peer", "call_local", "reliable")
+func _rpc_broadcast_super_cleanup() -> void:
+	var parent_node = get_parent()
+	_clean_up_final_smash_visuals(parent_node, 0.0)
+
+@rpc("any_peer", "call_local", "reliable")
+func _rpc_local_hitstop_freeze() -> void:
+	_execute_local_hitstop_freeze()
 func charge_super_meter(base_amount: float) -> void:
 	if is_shipping: return 
 	
@@ -897,36 +1004,48 @@ func execute_down_special() -> void:
 			
 	$AnimatedSprite2D.pause()
 	
-	for i in range(5):
-		var wave_step = 15.0 * i * direction_multiplier
-		var spawn_x = $SpawnMaker.global_position.x + wave_step
-		var spawn_y = $SpawnMaker.global_position.y 
-		
-		var space_state = get_world_2d().direct_space_state
-		var ray_start = Vector2(spawn_x, spawn_y - 10.0)
-		var ray_end = Vector2(spawn_x, spawn_y + 20.0)
-		
-		var query = PhysicsRayQueryParameters2D.create(ray_start, ray_end)
-		query.exclude = [self.get_rid()]
-		
-		var result = space_state.intersect_ray(query)
-		if result.is_empty():
-			break 
+	# 📡 ONLY THE OWNER PLOTS THE MATH AND TELLS THE NETWORK TO SPAWN
+	if is_multiplayer_authority():
+		for i in range(5):
+			var wave_step = 15.0 * i * direction_multiplier
+			var spawn_x = $SpawnMaker.global_position.x + wave_step
+			var spawn_y = $SpawnMaker.global_position.y 
 			
-		var spike_instance = LAG_SPIKE_SCENE.instantiate()
-		spike_instance.creator = self
-		spike_instance.global_position = Vector2(spawn_x, result.position.y)
-		
-		if spike_instance.has_node("AnimatedSprite2D"):
-			spike_instance.get_node("AnimatedSprite2D").flip_h = is_facing_left
+			var space_state = get_world_2d().direct_space_state
+			var ray_start = Vector2(spawn_x, spawn_y - 10.0)
+			var ray_end = Vector2(spawn_x, spawn_y + 20.0)
 			
-		get_parent().add_child(spike_instance)
-		await get_tree().create_timer(0.08).timeout
+			var query = PhysicsRayQueryParameters2D.create(ray_start, ray_end)
+			query.exclude = [self.get_rid()]
+			
+			var result = space_state.intersect_ray(query)
+			if result.is_empty():
+				break 
+				
+			# Send the precise positioning calculations over the network to both windows
+			rpc("_rpc_spawn_spike", Vector2(spawn_x, result.position.y), is_facing_left)
+			
+			await get_tree().create_timer(0.08).timeout
 		
 	is_down_special_active = false
 	if is_on_floor():
 		$AnimatedSprite2D.play("idle")
 	print("[ATTACK] Completed. Control released.")
+
+
+# 📡 NETWORK HOOK FOR SIMULTANEOUS SPAWNING
+@rpc("any_peer", "call_local", "reliable")
+func _rpc_spawn_spike(spawn_pos: Vector2, look_left: bool) -> void:
+	var spike_instance = LAG_SPIKE_SCENE.instantiate()
+	
+	# Dynamically hook creator logic based on network authority mapping
+	spike_instance.creator = self
+	spike_instance.global_position = spawn_pos
+	
+	if spike_instance.has_node("AnimatedSprite2D"):
+		spike_instance.get_node("AnimatedSprite2D").flip_h = look_left
+		
+	get_parent().add_child(spike_instance)
 	
 func Tensor_charge_glow(enable: bool) -> void:
 	if block_shader_updates and enable == true:
@@ -965,6 +1084,7 @@ func reset_combat_state() -> void:
 	set_physics_process(true)
 
 	damage_percent = 0.0
+	air_skull_bash_count = 0 
 	hitstun_frames = 0
 	current_super_meter = current_super_meter * 0.25
 	current_shield_health = max_shield_health 

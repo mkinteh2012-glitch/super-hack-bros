@@ -2,6 +2,26 @@
 
 [ext_resource type="Script" uid="uid://criath12572tp" path="res://scripts/Misc/select_menu.gd" id="1_b1iqc"]
 [ext_resource type="Texture2D" uid="uid://ddbjwtsp0l36g" path="res://assets/Stage&CharacterRefrence/Battlefield.png" id="1_chyvs"]
+[ext_resource type="FontFile" uid="uid://ba8dsrils7te1" path="res://assets/fonts/PixelifySans-VariableFont_wght.ttf" id="2_l8vlo"]
+[ext_resource type="Texture2D" uid="uid://bawvvec1h33gf" path="res://assets/sprites/FightUI.png" id="3_6w8jx"]
+[ext_resource type="Texture2D" uid="uid://yhxsltmdljlq" path="res://assets/Stage&CharacterRefrence/BIg Battlefield.png" id="4_pffgn"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_l8vlo"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_l8vlo"]
+atlas = ExtResource("3_6w8jx")
+region = Rect2(3456, 0, 1152, 648)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_pffgn"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_l8vlo")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}]
 
 [node name="StageSelect" type="Control" unique_id=1492157178]
 layout_mode = 3
@@ -25,28 +45,37 @@ color = Color(0.7208326, 0.8148284, 0.91107506, 1)
 layout_mode = 0
 offset_right = 400.0
 offset_bottom = 648.0
+theme_override_styles/panel = SubResource("StyleBoxEmpty_l8vlo")
 
 [node name="StagePreviewDisplay" type="TextureRect" parent="PreviewPanel" unique_id=1665856688]
 layout_mode = 0
-offset_right = 40.0
-offset_bottom = 40.0
+offset_left = 76.00001
+offset_top = 161.0
+offset_right = 116.0
+offset_bottom = 201.0
+scale = Vector2(5.5, 5.5)
 expand_mode = 1
 stretch_mode = 5
 
 [node name="StageNameLabel" type="Label" parent="PreviewPanel" unique_id=595398490]
 layout_mode = 0
-offset_right = 40.0
-offset_bottom = 23.0
+offset_left = 77.0
+offset_top = 332.0
+offset_right = 117.0
+offset_bottom = 391.0
+theme_override_fonts/font = ExtResource("2_l8vlo")
+theme_override_font_sizes/font_size = 32
 horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="StageGrid" type="GridContainer" parent="." unique_id=720109538]
 custom_minimum_size = Vector2(32, 32)
 layout_mode = 0
-offset_left = 408.0
-offset_top = 22.0
-offset_right = 1553.0
-offset_bottom = 650.0
-columns = 2
+offset_left = 355.0
+offset_top = 80.0
+offset_right = 1500.0
+offset_bottom = 708.0
+columns = 4
 
 [node name="StageButton1" type="TextureButton" parent="StageGrid" unique_id=1969128108]
 custom_minimum_size = Vector2(160, 90)
@@ -56,3 +85,39 @@ size_flags_vertical = 4
 texture_normal = ExtResource("1_chyvs")
 ignore_texture_size = true
 stretch_mode = 5
+
+[node name="StageButton2" type="TextureButton" parent="StageGrid" unique_id=706175471]
+custom_minimum_size = Vector2(160, 90)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+texture_normal = ExtResource("4_pffgn")
+ignore_texture_size = true
+stretch_mode = 5
+
+[node name="Sprite2D" type="AnimatedSprite2D" parent="." unique_id=1259310727]
+position = Vector2(615, 335)
+sprite_frames = SubResource("SpriteFrames_pffgn")
+
+[node name="StageHeader" type="Label" parent="." unique_id=1175084181]
+layout_mode = 0
+offset_left = 504.0
+offset_top = -8.0
+offset_right = 908.0
+offset_bottom = 149.0
+theme_override_fonts/font = ExtResource("2_l8vlo")
+theme_override_font_sizes/font_size = 48
+text = "Stage Select
+"
+
+[node name="StageChoose" type="Label" parent="." unique_id=1974558922]
+layout_mode = 0
+offset_left = 24.0
+offset_top = 429.0
+offset_right = 309.0
+offset_bottom = 594.0
+theme_override_fonts/font = ExtResource("2_l8vlo")
+theme_override_font_sizes/font_size = 32
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3

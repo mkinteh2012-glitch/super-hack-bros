@@ -19,9 +19,11 @@ var consecutive_spikes: int = 0
 var last_opponent_hitstun: int = 0
 var was_dead_last_frame: bool = false
 
+# --- 🛡️ ENHANCED SHIELDING PARAMETERS ---
 var defense_reaction_chance: float = 0.95
-var dodge_vs_shield_ratio: float = 0.75  
+var dodge_vs_shield_ratio: float = 0.30   # Dropped significantly so it favors raw shield over rolls
 var special_aggression_weight: float = 0.85
+var shield_retention_bonus: float = 0.40  # Chance it keeps holding shield if opponent is still close
 
 var ai_recovery_phase: int = 0
 var midair_bash_count: int = 0
@@ -47,16 +49,19 @@ func _configure_difficulty_coefficients():
 	match difficulty_level:
 		Difficulty.EASY:
 			defense_reaction_chance = 0.35
-			dodge_vs_shield_ratio = 0.25
+			dodge_vs_shield_ratio = 0.60
 			special_aggression_weight = 0.30
+			shield_retention_bonus = 0.10
 		Difficulty.MEDIUM:
-			defense_reaction_chance = 0.65
-			dodge_vs_shield_ratio = 0.50
+			defense_reaction_chance = 0.70
+			dodge_vs_shield_ratio = 0.45
 			special_aggression_weight = 0.55
+			shield_retention_bonus = 0.25
 		Difficulty.HARD:
-			defense_reaction_chance = 0.95
-			dodge_vs_shield_ratio = 0.75 
+			defense_reaction_chance = 0.98  # Near instant parry/shield reaction
+			dodge_vs_shield_ratio = 0.20  # 80% preference for heavy shield blocks over rolling
 			special_aggression_weight = 0.85
+			shield_retention_bonus = 0.50  # Holds defensive pressure blocks
 
 func _physics_process(delta):
 	if not character.is_ai_controlled:
@@ -80,16 +85,17 @@ func _physics_process(delta):
 		consecutive_spikes = 0
 	last_opponent_hitstun = target_player.hitstun_frames
 
+	# --- DI & SURVIVAL BLOCK LAYER ---
 	if character.hitstun_frames > 0:
 		var survival_dir = 1.0 if character.global_position.x < 0 else -1.0
 		_press_virtual_movement(survival_dir)
 		
-		if randf() <= defense_reaction_chance and Engine.get_physics_frames() % 4 == 0:
+		# Mash shield while in hitstun to buffer a defensive frame immediately on exit
+		if randf() <= defense_reaction_chance:
 			character.input_shield_held = true
-			if not character.is_on_floor():
-				character.input_jump_pressed = true
 		return
 
+	# --- OFF-STAGE RECOVERY ---
 	if _is_off_stage():
 		_execute_recovery_routine()
 		brain_timer = 0.0 
@@ -98,9 +104,28 @@ func _physics_process(delta):
 		ai_recovery_phase = 0
 		midair_bash_count = 0
 
+	# --- 🛡️ CRITICAL REACTIVE SHIELD LAYER ---
 	if _is_target_attacking_me() and randf() <= defense_reaction_chance:
-		_execute_reactive_dodge_or_parry()
+		_execute_reactive_shield_matrix()
 		return
+
+	# --- ⚡ OUT-OF-SHIELD (OOS) PUNISH MATRIX ---
+	if character.is_shielding:
+		var distance = character.global_position.distance_to(target_player.global_position)
+		
+		# If opponent hit our shield and is recovering right in front of us, drop it and strike!
+		if distance <= 120.0 and (target_player.is_attacking or target_player.hitstun_frames > 0):
+			character.input_shield_held = false # Lower the guard
+			if randf() < special_aggression_weight:
+				character.input_special_pressed = true # Out-of-shield Skull Bash/Lag Spike
+			else:
+				character.input_attack_pressed = true # Out-of-shield Punch combo
+			return
+		
+		# Maintain bubble defense if they are hovering dangerously close and we have healthy shield stamina
+		if distance <= 180.0 and randf() < shield_retention_bonus and character.current_shield_health > 35.0:
+			character.input_shield_held = true
+			return
 
 	if _can_execute_super_snipe():
 		_execute_super_snipe()
@@ -115,32 +140,37 @@ func _is_target_attacking_me() -> bool:
 	if not is_instance_valid(target_player): return false
 	var distance = character.global_position.distance_to(target_player.global_position)
 	
-	if target_player.is_attacking and distance < 220.0:
+	# Detect aggressive presence or active hitbox triggers
+	if (target_player.is_attacking and distance < 260.0) or (distance < 130.0 and target_player.velocity.length() > 300.0):
 		var target_facing = -1.0 if target_player.sprite.flip_h else 1.0
 		var relative_dir = sign(character.global_position.x - target_player.global_position.x)
-		if relative_dir == target_facing or target_facing == 0:
+		if relative_dir == target_facing or target_facing == 0 or distance < 90.0:
 			return true
 	return false
 
-func _execute_reactive_dodge_or_parry():
+func _execute_reactive_shield_matrix():
 	_clear_virtual_inputs()
 	var x_dir = sign(target_player.global_position.x - character.global_position.x)
 	var roll = randf()
 
+	# High level AI prefers crisp stationary shields/parries to build punishes
 	if roll <= dodge_vs_shield_ratio:
+		# Roll/Spotdodge fallback
 		if character.is_on_floor():
 			if roll < (dodge_vs_shield_ratio * 0.5):
 				if "input_down_strength" in character: character.input_down_strength = 1.0
-				character.input_shield_held = true
+				character.input_shield_held = true # Spot dodge
 			else:
 				_press_virtual_movement(-x_dir)
-				character.input_shield_held = true
+				character.input_shield_held = true # Roll away
 		else:
 			_press_virtual_movement(-x_dir)
-			if "input_up_strength" in character: character.input_up_strength = 0.5
-			character.input_shield_held = true
+			character.input_shield_held = true # Neutral air dodge evasion
 	else:
+		# 80%+ Default Priority: Raise the physical shield dome
 		character.input_shield_held = true
+		if x_dir != 0:
+			_press_virtual_movement(x_dir) # Lean shield into the incoming pressure
 
 func _evaluate_battlefield_state():
 	_clear_virtual_inputs()
@@ -166,14 +196,14 @@ func _evaluate_battlefield_state():
 	var opponent_is_off_stage = opp_floor_check.is_empty()
 	
 	var opening_rushdown_active: bool = match_start_cooldown > 0.0 or (distance > 450.0 and character.is_on_floor())
-	
-	if character.is_shielding and distance <= 110.0:
-		character.input_shield_held = false 
-		if random_roll < special_aggression_weight:
-			character.input_special_pressed = true 
-		else:
-			character.input_attack_pressed = true 
-		return
+
+	# --- APPROACHING DEFENSE MECHANISM ---
+	# If running up on an opponent who isn't open, run up and raise shield to bait an attack
+	if not opening_rushdown_active and distance > 100.0 and distance < 220.0 and not target_player.hitstun_frames > 0:
+		if random_roll > 0.60 and character.current_shield_health > 50.0:
+			_press_virtual_movement(x_dir)
+			character.input_shield_held = true # Tomahawk/Run-up shielding approach
+			return
 
 	if opponent_is_off_stage and character.is_on_floor() and not opening_rushdown_active:
 		_execute_dynamic_edge_camp(target_player)
@@ -245,9 +275,13 @@ func _execute_dynamic_edge_camp(opponent: CharacterBody2D) -> void:
 		
 		var distance_to_opp = abs(ai_global_pos.x - opp_x)
 		if distance_to_opp < 250.0:
-			character.input_special_pressed = true
-			character.input_left_strength = 1.0 if ledge_dir < 0 else 0.0
-			character.input_right_strength = 1.0 if ledge_dir > 0 else 0.0
+			# Use shielding at the edge to bait unsafe recovery attacks from the opponent
+			if character.current_shield_health > 40.0 and randf() > 0.40:
+				character.input_shield_held = true
+			else:
+				character.input_special_pressed = true
+				character.input_left_strength = 1.0 if ledge_dir < 0 else 0.0
+				character.input_right_strength = 1.0 if ledge_dir > 0 else 0.0
 
 func _is_off_stage() -> bool:
 	if character.is_on_floor(): return false
@@ -370,4 +404,4 @@ func _reset_reaction_timer():
 	match difficulty_level:
 		Difficulty.EASY:   brain_timer = randf_range(0.65, 1.15)
 		Difficulty.MEDIUM: brain_timer = randf_range(0.22, 0.42)
-		Difficulty.HARD:   brain_timer = randf_range(0.02, 0.08)
+		Difficulty.HARD:   brain_timer = randf_range(0.01, 0.05) 

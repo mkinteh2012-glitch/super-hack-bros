@@ -220,10 +220,40 @@ polygon = PackedVector2Array(-13, 31, 12, 31, 12, 34, -13, 34, -13, 32)
 [sub_resource type="CircleShape2D" id="CircleShape2D_7hndc"]
 radius = 35.014282
 
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_wds51"]
+properties/0/path = NodePath(".:sync_jump_pressed")
+properties/0/spawn = true
+properties/0/replication_mode = 1
+properties/1/path = NodePath(".:sync_attack_pressed")
+properties/1/spawn = true
+properties/1/replication_mode = 1
+properties/2/path = NodePath(".:sync_special_pressed")
+properties/2/spawn = true
+properties/2/replication_mode = 1
+properties/3/path = NodePath(".:sync_shield_held")
+properties/3/spawn = true
+properties/3/replication_mode = 1
+properties/4/path = NodePath(".:sync_holding_up")
+properties/4/spawn = true
+properties/4/replication_mode = 1
+properties/5/path = NodePath(".:sync_moving_sideways")
+properties/5/spawn = true
+properties/5/replication_mode = 1
+properties/6/path = NodePath(".:sync_direction")
+properties/6/spawn = true
+properties/6/replication_mode = 1
+properties/7/path = NodePath(".:position")
+properties/7/spawn = true
+properties/7/replication_mode = 1
+properties/8/path = NodePath(".:damage_percent")
+properties/8/spawn = true
+properties/8/replication_mode = 1
+
 [node name="Orpheus" type="CharacterBody2D" unique_id=140856988]
 z_index = 5
 collision_layer = 2
 collision_mask = 3
+floor_snap_length = 8.0
 script = ExtResource("1_4x3ae")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=964887262]
@@ -340,6 +370,9 @@ script = ExtResource("11_wds51")
 
 [node name="RayCast2D" type="RayCast2D" parent="EnemyAI" unique_id=154442280]
 position = Vector2(21, -1)
+
+[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="." unique_id=400162823]
+replication_config = SubResource("SceneReplicationConfig_wds51")
 
 [connection signal="body_entered" from="PunchBox" to="." method="_on_punch_box_body_entered"]
 [connection signal="body_entered" from="Hurtbox" to="." method="_on_hurtbox_body_entered"]

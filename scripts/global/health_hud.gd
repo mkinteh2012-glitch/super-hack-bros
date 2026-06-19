@@ -19,6 +19,7 @@ var frame_counter: int = 0
 const UPDATE_EVERY_X_FRAMES: int = 5
 
 func _ready() -> void:
+	# Keep the connection for local offline matching functionality
 	SignalBus.global_player_damaged.connect(update_player_ui)
 	
 	# 📡 CONNECT TO THE STOCK MANAGER SIGNAL
@@ -31,9 +32,9 @@ func _ready() -> void:
 	if p1_bar: p1_bar.value = 0.0
 	if p2_bar: p2_bar.value = 0.0
 	
-	# 🎨 Populate initial 3 stocks visually for both players on start
-	_refresh_stock_display(1, 3)
-	_refresh_stock_display(2, 3)
+	# 🎨 Populate initial stocks visually for both players on start
+	_refresh_stock_display(1, GlobalGameData.match_stocks)
+	_refresh_stock_display(2, GlobalGameData.match_stocks)
 
 func _process(_delta: float) -> void:
 	frame_counter += 1
@@ -50,36 +51,46 @@ func _pull_player_meter_values() -> void:
 	var stage_tint_needed_p2: bool = false
 	
 	# 🟦 UNLINKED PLAYER 1 EVALUATION
-	if p1_node and p1_bar:
-		p1_bar.max_value = p1_node.max_super_meter
-		p1_bar.value = p1_node.current_super_meter
-		
-		# Strictly isolate P1's condition
-		if p1_bar.value >= p1_bar.max_value and p1_bar.max_value > 0:
-			p1_bar.modulate = COLOR_BLUE
-			stage_tint_needed_p1 = true
-			if p1_node.has_method("set_charge_glow"):
-				p1_node.set_charge_glow(true) # Light up ONLY P1
-		else:
-			p1_bar.modulate = COLOR_WHITE
-			if p1_node.has_method("set_charge_glow"):
-				p1_node.set_charge_glow(false) # Turn off ONLY P1
+	if p1_node:
+		# 🌐 NETWORK FIX: Pull the replicated damage value directly from the synced node state
+		if "damage_percent" in p1_node:
+			_apply_label_text_and_color(1, p1_node.damage_percent)
+
+		if p1_bar:
+			p1_bar.max_value = p1_node.max_super_meter
+			p1_bar.value = p1_node.current_super_meter
+			
+			# Strictly isolate P1's condition
+			if p1_bar.value >= p1_bar.max_value and p1_bar.max_value > 0:
+				p1_bar.modulate = COLOR_BLUE
+				stage_tint_needed_p1 = true
+				if p1_node.has_method("set_charge_glow"):
+					p1_node.set_charge_glow(true) # Light up ONLY P1
+			else:
+				p1_bar.modulate = COLOR_WHITE
+				if p1_node.has_method("set_charge_glow"):
+					p1_node.set_charge_glow(false) # Turn off ONLY P1
 		
 	# 🟥 UNLINKED PLAYER 2 EVALUATION
-	if p2_node and p2_bar:
-		p2_bar.max_value = p2_node.max_super_meter
-		p2_bar.value = p2_node.current_super_meter
-		
-		# Strictly isolate P2's condition
-		if p2_bar.value >= p2_bar.max_value and p2_bar.max_value > 0:
-			p2_bar.modulate = COLOR_BLUE
-			stage_tint_needed_p2 = true
-			if p2_node.has_method("set_charge_glow"):
-				p2_node.set_charge_glow(true) # Light up ONLY P2
-		else:
-			p2_bar.modulate = COLOR_WHITE
-			if p2_node.has_method("set_charge_glow"):
-				p2_node.set_charge_glow(false) # Turn off ONLY P2
+	if p2_node:
+		# 🌐 NETWORK FIX: Pull the replicated damage value directly from the synced node state
+		if "damage_percent" in p2_node:
+			_apply_label_text_and_color(2, p2_node.damage_percent)
+
+		if p2_bar:
+			p2_bar.max_value = p2_node.max_super_meter
+			p2_bar.value = p2_node.current_super_meter
+			
+			# Strictly isolate P2's condition
+			if p2_bar.value >= p2_bar.max_value and p2_bar.max_value > 0:
+				p2_bar.modulate = COLOR_BLUE
+				stage_tint_needed_p2 = true
+				if p2_node.has_method("set_charge_glow"):
+					p2_node.set_charge_glow(true) # Light up ONLY P2
+			else:
+				p2_bar.modulate = COLOR_WHITE
+				if p2_node.has_method("set_charge_glow"):
+					p2_node.set_charge_glow(false) # Turn off ONLY P2
 		
 
 	var level_root = get_tree().get_root().get_child(0)
@@ -91,27 +102,31 @@ func _pull_player_meter_values() -> void:
 		if level_root.modulate != target_color:
 			var stage_tween = create_tween()
 			stage_tween.tween_property(level_root, "modulate", target_color, 0.4).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-# Delete your old '_handle_bar_color_logic' function completely, as it is no longer used!
 
-		
-func update_player_ui(player_id: int, new_percent: float, is_heavy_hit: bool):
+# Core visual assignment helper function used by both local signals and global node pull loops
+func _apply_label_text_and_color(player_id: int, percent: float) -> void:
 	var target_label: Label = p1_label if player_id == 1 else p2_label
-	var target_node: Control = $P1 if player_id == 1 else $P2
-	
 	if not target_label: return
 	
-	target_label.text = str(floor(new_percent)) + "%"
+	target_label.text = str(floor(percent)) + "%"
 	
 	var target_color: Color = COLOR_WHITE
-	if new_percent < 50.0:
-		var weight = new_percent / 50.0
+	if percent < 50.0:
+		var weight = percent / 50.0
 		target_color = COLOR_WHITE.lerp(COLOR_ORANGE, weight)
 	else:
-		var weight = clamp((new_percent - 50.0) / 50.0, 0.0, 1.0)
+		var weight = clamp((percent - 50.0) / 50.0, 0.0, 1.0)
 		target_color = COLOR_ORANGE.lerp(COLOR_RED, weight)
 		
 	target_label.modulate = target_color
 
+func update_player_ui(player_id: int, new_percent: float, is_heavy_hit: bool):
+	_apply_label_text_and_color(player_id, new_percent)
+	
+	var target_node: Control = $P1 if player_id == 1 else $P2
+	if not target_node: return
+
+	# Punchy visual pop animation whenever structural damage takes place
 	var tween = create_tween().set_parallel(true)
 	target_node.scale = Vector2(1.3, 1.3)
 	tween.tween_property(target_node, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)

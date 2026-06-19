@@ -1,0 +1,101 @@
+[gd_scene format=3 uid="uid://by8fkl5dhoguc"]
+
+[ext_resource type="Script" uid="uid://dpns1g18om7dm" path="res://scripts/Misc/match_settings_menu.gd" id="1_ncslj"]
+[ext_resource type="FontFile" uid="uid://ba8dsrils7te1" path="res://assets/fonts/PixelifySans-VariableFont_wght.ttf" id="2_am7gr"]
+
+[node name="MatchSettingsMenu" type="Control" unique_id=756472383]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_ncslj")
+
+[node name="ColorRect" type="ColorRect" parent="." unique_id=1980326525]
+z_index = -1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(1, 0, 0.39215687, 0.6431373)
+
+[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=517760343]
+layout_mode = 0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = 150.0
+offset_bottom = 333.0
+theme_override_constants/separation = 50
+
+[node name="Size" type="HBoxContainer" parent="VBoxContainer" unique_id=1434159184]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="VBoxContainer/Size" unique_id=439757784]
+layout_mode = 2
+theme_override_fonts/font = ExtResource("2_am7gr")
+text = "Size"
+
+[node name="Button" type="Button" parent="VBoxContainer/Size" unique_id=783003871]
+layout_mode = 2
+theme_override_fonts/font = ExtResource("2_am7gr")
+
+[node name="Stocks" type="HBoxContainer" parent="VBoxContainer" unique_id=550614957]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="VBoxContainer/Stocks" unique_id=513232544]
+layout_mode = 2
+theme_override_fonts/font = ExtResource("2_am7gr")
+text = "Stocks"
+
+[node name="Button" type="Button" parent="VBoxContainer/Stocks" unique_id=30666194]
+layout_mode = 2
+theme_override_fonts/font = ExtResource("2_am7gr")
+
+[node name="Itemspawn" type="HBoxContainer" parent="VBoxContainer" unique_id=1571770289]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="VBoxContainer/Itemspawn" unique_id=1230740207]
+layout_mode = 2
+theme_override_fonts/font = ExtResource("2_am7gr")
+text = "Itemspawn"
+
+[node name="Button" type="Button" parent="VBoxContainer/Itemspawn" unique_id=898319279]
+layout_mode = 2
+theme_override_fonts/font = ExtResource("2_am7gr")
+
+[node name="Hazards" type="HBoxContainer" parent="VBoxContainer" unique_id=627780407]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="VBoxContainer/Hazards" unique_id=1880418935]
+layout_mode = 2
+theme_override_fonts/font = ExtResource("2_am7gr")
+text = "Hazards On"
+
+[node name="Button" type="Button" parent="VBoxContainer/Hazards" unique_id=1270984943]
+layout_mode = 2
+theme_override_fonts/font = ExtResource("2_am7gr")
+
+[node name="DMGmult" type="HBoxContainer" parent="VBoxContainer" unique_id=1416194079]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="VBoxContainer/DMGmult" unique_id=22929067]
+layout_mode = 2
+theme_override_fonts/font = ExtResource("2_am7gr")
+text = "Damge Multiplier
+"
+
+[node name="Button" type="Button" parent="VBoxContainer/DMGmult" unique_id=447887085]
+layout_mode = 2
+theme_override_fonts/font = ExtResource("2_am7gr")
+
+[node name="Button" type="Button" parent="." unique_id=1987367703]
+layout_mode = 0
+offset_left = 841.0
+offset_top = 590.0
+offset_right = 994.0
+offset_bottom = 618.0
+theme_override_fonts/font = ExtResource("2_am7gr")
+text = "Confirm & Continue"

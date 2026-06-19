@@ -3,6 +3,7 @@
 [ext_resource type="Texture2D" uid="uid://bpu5fe0c7g21q" path="res://assets/sprites/UI-Sheet.png" id="1_cpjon"]
 [ext_resource type="Script" uid="uid://etlydugmjxxe" path="res://scripts/Misc/menu_buttons.gd" id="1_j28dm"]
 [ext_resource type="Texture2D" uid="uid://bawvvec1h33gf" path="res://assets/sprites/FightUI.png" id="3_uc8l5"]
+[ext_resource type="Texture2D" uid="uid://de36qllrq4vcp" path="res://assets/sprites/Onlineui.png" id="4_6lcc3"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_j28dm"]
 atlas = ExtResource("1_cpjon")
@@ -23,6 +24,14 @@ region = Rect2(0, 0, 1152, 648)
 [sub_resource type="AtlasTexture" id="AtlasTexture_6lcc3"]
 atlas = ExtResource("1_cpjon")
 region = Rect2(8064, 0, 1152, 648)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_70v8d"]
+atlas = ExtResource("4_6lcc3")
+region = Rect2(0, 0, 1152, 648)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_t8o45"]
+atlas = ExtResource("4_6lcc3")
+region = Rect2(1152, 0, 1152, 648)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_khw2l"]
 atlas = ExtResource("1_cpjon")
@@ -81,6 +90,22 @@ animations = [{
 }, {
 "frames": [{
 "duration": 1.0,
+"texture": SubResource("AtlasTexture_70v8d")
+}],
+"loop": true,
+"name": &"Online_Priv",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_t8o45")
+}],
+"loop": true,
+"name": &"Online_Pub",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
 "texture": SubResource("AtlasTexture_khw2l")
 }],
 "loop": true,
@@ -105,4 +130,4 @@ script = ExtResource("1_j28dm")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=329506469]
 sprite_frames = SubResource("SpriteFrames_hvs8t")
-animation = &"Fight_Fight"
+animation = &"Online_Pub"

@@ -11,12 +11,14 @@ config_version=5
 [application]
 
 config/name="Super Hack Bros"
-run/main_scene="uid://bbuemveeeg1lx"
+run/main_scene="uid://dgpdv6q8prgrb"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 
 [autoload]
 
 SignalBus="*uid://dvqqt46lxojym"
+GlobalGameData="*uid://q4d0fobrd8ku"
+NetworkManager="*uid://bvhuf14gl3v6"
 
 [display]
 

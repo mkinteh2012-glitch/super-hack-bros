@@ -34,11 +34,8 @@ func _ready() -> void:
 	print("[CAMERA] Original Benchmarks Secured. Pos: ", og_position, " | Zoom: ", og_zoom)
 
 func _process(delta: float) -> void:
-	# -------------------------------------------------------------
-	# 1. TRACKING & ZOOM BLOCK (FROZEN DURING SPECIALS)
-	# -------------------------------------------------------------
-	# If a cinematic lock is active, we skip position/zoom updates 
-	# completely so the camera stays exactly where it was told to go!
+	player1 = get_tree().root.find_child("Player1", true, false)
+	player2 = get_tree().root.find_child("Player2", true, false)
 	if not SignalBus.camera_cinematic_lock:
 		var p1_valid = is_instance_valid(player1) and player1.visible
 		var p2_valid = is_instance_valid(player2) and player2.visible

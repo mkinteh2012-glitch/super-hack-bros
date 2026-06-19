@@ -205,7 +205,7 @@ offset_top = 250.0
 offset_right = 620.0
 offset_bottom = 290.0
 menu_animation_name = "Fight_Custom"
-mode_description = "Adjust rules like time stock or item spawn!"
+mode_description = "Adjust rules like stock or item spawn"
 
 [node name="FightLabel" type="Label" parent="FightSubMenu" unique_id=1177041703]
 z_index = 1
@@ -228,4 +228,50 @@ offset_bottom = 604.0
 theme_override_fonts/font = ExtResource("3_4vh8y")
 theme_override_font_sizes/font_size = 72
 text = "Custom Settings
+"
+
+[node name="OnlineSubMenu" type="Control" parent="." unique_id=1030747960]
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="OnlineButton" parent="OnlineSubMenu" unique_id=337589876 instance=ExtResource("1_11hie")]
+layout_mode = 0
+offset_left = 580.0
+offset_top = 250.0
+offset_right = 620.0
+offset_bottom = 290.0
+menu_animation_name = "Online_Pub"
+mode_description = "Play in a public server and battle different people!"
+
+[node name="OnlineButton2" parent="OnlineSubMenu" unique_id=612615185 instance=ExtResource("1_11hie")]
+layout_mode = 0
+offset_left = 580.0
+offset_top = 250.0
+offset_right = 620.0
+offset_bottom = 290.0
+menu_animation_name = "Online_Priv"
+mode_description = "Play in a private server with friends!"
+
+[node name="OnlineLabel2" type="Label" parent="OnlineSubMenu" unique_id=1614503295]
+z_index = 1
+layout_mode = 0
+offset_left = 223.0
+offset_top = 77.0
+offset_right = 832.0
+offset_bottom = 193.0
+theme_override_fonts/font = ExtResource("3_4vh8y")
+theme_override_font_sizes/font_size = 96
+text = "Public Server"
+
+[node name="OnlineLabel" type="Label" parent="OnlineSubMenu" unique_id=521978286]
+z_index = 1
+layout_mode = 0
+offset_left = 264.0
+offset_top = 366.0
+offset_right = 861.0
+offset_bottom = 545.0
+theme_override_fonts/font = ExtResource("3_4vh8y")
+theme_override_font_sizes/font_size = 72
+text = "Private Server
 "

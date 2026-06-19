@@ -1,0 +1,69 @@
+[gd_scene format=3 uid="uid://f48sytm4hcoi"]
+
+[ext_resource type="Script" uid="uid://wagg73sjhkvi" path="res://scripts/networking/online_menu.gd" id="1_llwsf"]
+[ext_resource type="FontFile" uid="uid://ba8dsrils7te1" path="res://assets/fonts/PixelifySans-VariableFont_wght.ttf" id="2_2xshg"]
+
+[node name="OnlineMenu" type="Control" unique_id=1305894782]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_llwsf")
+
+[node name="Label" type="Label" parent="." unique_id=2028241132]
+layout_mode = 0
+offset_left = 211.0
+offset_top = 234.0
+offset_right = 533.0
+offset_bottom = 257.0
+theme_override_fonts/font = ExtResource("2_2xshg")
+
+[node name="Label2" type="Label" parent="." unique_id=1581727791]
+layout_mode = 0
+offset_left = 273.0
+offset_top = 169.0
+offset_right = 313.0
+offset_bottom = 192.0
+theme_override_fonts/font = ExtResource("2_2xshg")
+
+[node name="Label3" type="Label" parent="." unique_id=1386156658]
+layout_mode = 0
+offset_left = 301.0
+offset_top = 101.0
+offset_right = 341.0
+offset_bottom = 124.0
+theme_override_fonts/font = ExtResource("2_2xshg")
+
+[node name="Label4" type="Label" parent="." unique_id=667579409]
+layout_mode = 0
+offset_left = 104.0
+offset_top = 149.0
+offset_right = 144.0
+offset_bottom = 172.0
+theme_override_fonts/font = ExtResource("2_2xshg")
+
+[node name="Button" type="Button" parent="." unique_id=1184292560]
+layout_mode = 0
+offset_left = 176.0
+offset_top = 327.0
+offset_right = 300.0
+offset_bottom = 485.0
+theme_override_fonts/font = ExtResource("2_2xshg")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="." unique_id=1662053632]
+layout_mode = 0
+offset_left = 214.0
+offset_top = 186.0
+offset_right = 313.0
+offset_bottom = 226.0
+theme_override_constants/separation = 60
+
+[node name="Label" type="Label" parent="HBoxContainer" unique_id=1038645716]
+layout_mode = 2
+theme_override_fonts/font = ExtResource("2_2xshg")
+
+[node name="LineEdit" type="LineEdit" parent="HBoxContainer" unique_id=609052549]
+layout_mode = 2
+theme_override_fonts/font = ExtResource("2_2xshg")
