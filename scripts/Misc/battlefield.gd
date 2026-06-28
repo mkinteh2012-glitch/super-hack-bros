@@ -5,6 +5,7 @@ extends Node2D
 # --- 🎯 1. PRELOAD CHARACTER SCENES ---
 var characters_scenes: Dictionary = {
 	"Orpheus": preload("res://scenes/characters/orpheus.tscn"),
+	"Smolhaj": preload("res://scenes/characters/smolhaj.tscn"),
 }
 
 # --- 📍 2. NODE REFERENCES ---

@@ -261,7 +261,6 @@ material = SubResource("ShaderMaterial_c1iwk")
 position = Vector2(-1, 1)
 sprite_frames = SubResource("SpriteFrames_aqdih")
 animation = &"run"
-frame_progress = 0.08742654
 
 [node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="." unique_id=1515111420]
 polygon = PackedVector2Array(-6, -24, -6, -27, 9, -29, 11, -28, 14, -25, 16, -22, 16, -19, 9, -14, 7, -13, 9, 3, 12, 13, 14, 24, 12, 26, 13, 28, 13, 31, 9, 30, 8, 29, 7, 22, 5, 20, -1, 20, -4, 25, -5, 30, -11, 30, -12, 28, -13, 24, -14, 19, -14, -2, -13, -4, -13, -7, -12, -7, -12, -19, -13, -21, -10, -23, -8, -24)

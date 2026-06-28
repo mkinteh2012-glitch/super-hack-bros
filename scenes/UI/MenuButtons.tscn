@@ -4,6 +4,7 @@
 [ext_resource type="Script" uid="uid://etlydugmjxxe" path="res://scripts/Misc/menu_buttons.gd" id="1_j28dm"]
 [ext_resource type="Texture2D" uid="uid://bawvvec1h33gf" path="res://assets/sprites/FightUI.png" id="3_uc8l5"]
 [ext_resource type="Texture2D" uid="uid://de36qllrq4vcp" path="res://assets/sprites/Onlineui.png" id="4_6lcc3"]
+[ext_resource type="Texture2D" uid="uid://nyve8eu4e1wd" path="res://assets/sprites/VaultUI.png" id="5_khw2l"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_j28dm"]
 atlas = ExtResource("1_cpjon")
@@ -40,6 +41,14 @@ region = Rect2(2304, 0, 1152, 648)
 [sub_resource type="AtlasTexture" id="AtlasTexture_qn4av"]
 atlas = ExtResource("1_cpjon")
 region = Rect2(3456, 0, 1152, 648)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0xedd"]
+atlas = ExtResource("5_khw2l")
+region = Rect2(1152, 0, 1152, 648)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_e2ikp"]
+atlas = ExtResource("5_khw2l")
+region = Rect2(2304, 0, 1152, 648)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_hvs8t"]
 animations = [{
@@ -119,6 +128,22 @@ animations = [{
 "loop": true,
 "name": &"Vault",
 "speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_0xedd")
+}],
+"loop": true,
+"name": &"Vault_1",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_e2ikp")
+}],
+"loop": true,
+"name": &"Vault_2",
+"speed": 5.0
 }]
 
 [node name="TextureButton" type="TextureButton" unique_id=1557350800]
@@ -130,4 +155,4 @@ script = ExtResource("1_j28dm")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=329506469]
 sprite_frames = SubResource("SpriteFrames_hvs8t")
-animation = &"Online_Pub"
+animation = &"Vault_2"

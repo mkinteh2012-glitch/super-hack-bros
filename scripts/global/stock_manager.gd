@@ -125,11 +125,23 @@ func _end_match(winner_id: int) -> void:
 		GlobalGameData.local_match_result = "YOU LOSE 👎" if is_local_p1 else "YOU WIN 👍"
 		GlobalGameData.match_end_reason = "Player 1 ran out of stocks!"
 		
+	# --- 📊 CORE STATS PROCESSING HOOK ---
+	# Checks if the engine method exists, then calculates if the local player won or lost
+	if GlobalGameData.has_method("register_match_results"):
+		var p1_won: bool = (winner_id == 1)
+		
+		if GlobalGameData.online:
+			# In online matches, only process the local client's individual perspective
+			var local_won = p1_won if is_local_p1 else not p1_won
+			GlobalGameData.register_match_results(local_won)
+		else:
+			# In local matches, pass whether P1 won or lost to calculate P1/P2/CPU adjustments cleanly
+			GlobalGameData.register_match_results(p1_won)
+		
 	await get_tree().create_timer(0.4, true, false, true).timeout
 	Engine.time_scale = 1.0
 
 	# 🛑 STOP REPLICATION SYSTEM PACKETS IMMEDIATELY
-	# This kills incoming/outgoing data packets right before freeing the level nodes
 	var level_root = get_parent()
 	if level_root:
 		for sync_node in level_root.find_children("*", "MultiplayerSynchronizer", true, false):

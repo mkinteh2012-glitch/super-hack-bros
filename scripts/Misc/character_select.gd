@@ -43,7 +43,7 @@ var original_position: Vector2
 # --- 🗃️ 3. CHARACTER DATABASE ---
 var character_data: Dictionary = {
 	0: { "name": "Orpheus" },
-	1: { "name": "Donkey Kong" }
+	1: { "name": "Smolhaj" }
 }
 
 # --- 🚀 4. LIFE CYCLE METHODS ---
@@ -81,6 +81,8 @@ func _setup_panel_types() -> void:
 		p2_sprite.play("P2") 
 	else:
 		p2_sprite.play("P2" if not p2_is_cpu else "CPU")
+		if p2_is_cpu:
+			p2_locked = false
 		
 	p1_label.modulate = COLOR_NOT_READY
 	p2_label.modulate = COLOR_NOT_READY
@@ -97,14 +99,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			var local_player_num = 1 if current_machine_id == GlobalGameData.P1 else 2
 			var is_local_locked = p1_locked if local_player_num == 1 else p2_locked
 			
-			# Block all movement inputs if this computer's player slot is locked down
 			if not is_local_locked:
 				if event.keycode == KEY_W or event.keycode == KEY_UP: _move_cursor(local_player_num, Vector2.UP)
 				elif event.keycode == KEY_S or event.keycode == KEY_DOWN: _move_cursor(local_player_num, Vector2.DOWN)
 				elif event.keycode == KEY_A or event.keycode == KEY_LEFT: _move_cursor(local_player_num, Vector2.LEFT)
 				elif event.keycode == KEY_D or event.keycode == KEY_RIGHT: _move_cursor(local_player_num, Vector2.RIGHT)
 			
-			# Handle selection submission safely
 			if event.keycode == KEY_SPACE or event.keycode == KEY_ENTER:
 				if local_player_num == 1:
 					p1_locked = not p1_locked
@@ -120,7 +120,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		# --- 🛋️ LOCAL OFFLINE MODE ---
 		if event.keycode == KEY_C and not p1_locked and not p2_locked:
 			p2_is_cpu = not p2_is_cpu
-			_update_p2_panel_visuals()
+			_setup_panel_types() # Refresh textures cleanly
 			return
 
 		# P1 Hardcoded Local Couch Play Inputs
@@ -133,16 +133,23 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.keycode == KEY_SPACE:
 			p1_locked = not p1_locked
 			_update_p1_visuals()
+			
+			# If playing against a CPU, locking P1 instantly pairs the CPU's selection state
+			if p2_is_cpu:
+				p2_locked = p1_locked
+				_update_p2_panel_visuals()
+				
 			_check_match_start()
 
-		# P2 Hardcoded Local Couch Play Inputs
+		# P2 Hardcoded Local Couch Play Inputs (Only runs if P2 is a human)
 		if not p2_locked and not p2_is_cpu:
 			if event.keycode == KEY_UP: _move_cursor(2, Vector2.UP)
 			elif event.keycode == KEY_DOWN: _move_cursor(2, Vector2.DOWN)
 			elif event.keycode == KEY_LEFT: _move_cursor(2, Vector2.LEFT)
 			elif event.keycode == KEY_RIGHT: _move_cursor(2, Vector2.RIGHT)
 				
-		if event.keycode == KEY_ENTER and not p2_is_cpu:
+		# FIXED: Removed 'and not p2_is_cpu' constraint so Enter works for locks/overrides
+		if event.keycode == KEY_ENTER:
 			p2_locked = not p2_locked
 			_update_p2_panel_visuals()
 			_check_match_start()
@@ -174,6 +181,10 @@ func _move_cursor(player_num: int, direction: Vector2) -> void:
 		p1_grid_index = new_idx
 		if character_data.has(p1_grid_index):
 			p1_selected_char = character_data[p1_grid_index]["name"]
+			# Match the CPU cursor location directly with Player 1 for seamless scrolling
+			if p2_is_cpu and not p1_locked:
+				p2_grid_index = new_idx
+				p2_selected_char = character_data[p2_grid_index]["name"]
 	else:
 		p2_grid_index = new_idx
 		if character_data.has(p2_grid_index):
@@ -190,7 +201,6 @@ func _rpc_send_selection_to_opponent(grid_idx: int, is_locked: bool) -> void:
 func receive_opponent_selection_data(remote_grid_idx: int, remote_locked_state: bool) -> void:
 	var current_machine_id = str(multiplayer.get_unique_id())
 	
-	# Assign incoming peer configurations directly without looping back into input processing functions
 	if current_machine_id == GlobalGameData.P2:
 		p1_grid_index = remote_grid_idx
 		p1_locked = remote_locked_state
@@ -269,4 +279,3 @@ func _check_match_start() -> void:
 			await shake_tween.finished 
 			
 		get_tree().change_scene_to_file(target_stage)
-		

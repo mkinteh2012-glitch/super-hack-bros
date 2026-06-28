@@ -275,3 +275,48 @@ theme_override_fonts/font = ExtResource("3_4vh8y")
 theme_override_font_sizes/font_size = 72
 text = "Private Server
 "
+
+[node name="VaultSubMenu" type="Control" parent="." unique_id=1429600681]
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="VaultButton" parent="VaultSubMenu" unique_id=1298080058 instance=ExtResource("1_11hie")]
+layout_mode = 0
+offset_left = 580.0
+offset_top = 250.0
+offset_right = 620.0
+offset_bottom = 290.0
+menu_animation_name = "Vault_1"
+mode_description = "Rewatch your previous matches!"
+
+[node name="VaultButton2" parent="VaultSubMenu" unique_id=2065779586 instance=ExtResource("1_11hie")]
+layout_mode = 0
+offset_left = 580.0
+offset_top = 250.0
+offset_right = 620.0
+offset_bottom = 290.0
+menu_animation_name = "Vault_2"
+mode_description = "See your stats and records!"
+
+[node name="VaultLabel2" type="Label" parent="VaultSubMenu" unique_id=749708035]
+z_index = 1
+layout_mode = 0
+offset_left = 233.0
+offset_top = 128.0
+offset_right = 842.0
+offset_bottom = 244.0
+theme_override_fonts/font = ExtResource("3_4vh8y")
+theme_override_font_sizes/font_size = 96
+text = "Match Replays"
+
+[node name="VaultLabel" type="Label" parent="VaultSubMenu" unique_id=449265062]
+z_index = 1
+layout_mode = 0
+offset_left = 389.0
+offset_top = 417.0
+offset_right = 986.0
+offset_bottom = 596.0
+theme_override_fonts/font = ExtResource("3_4vh8y")
+theme_override_font_sizes/font_size = 96
+text = "Stats"

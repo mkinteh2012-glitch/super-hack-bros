@@ -55,7 +55,8 @@ const DEFAULT_PROMPT: String = "Select an option using WASD or Arrow Keys"
 	sub_fight_btn: Color.from_string("#b89999", Color.LIGHT_GRAY),
 	sub_custom_btn: Color.from_string("#bda6c2", Color.PURPLE),
 	sub_public_btn: Color.from_string("#a6c2a8", Color.LIGHT_GREEN),
-	sub_private_btn: Color.from_string("#cfa6c4", Color.PINK)
+	sub_private_btn: Color.from_string("#cfa6c4", Color.PINK),
+	vault_sub_menu: Color.from_string("#cfa6c4", Color.PINK)
 }
 
 var default_bg_color: Color = Color.from_string("#d8ecec", Color.LIGHT_BLUE)
@@ -66,6 +67,17 @@ var active_sequence: Array[TextureButton] = []
 var current_index: int = 0
 var showing_alert_notice: bool = false
 var alert_timer: Timer # ⏱️ Persistent timer reference
+
+@onready var vault_sub_menu: Control = $VaultSubMenu
+@onready var sub_vault_back_btn: TextureButton = $VaultSubMenu/VaultButton
+@onready var sub_vault_reset_btn: TextureButton = $VaultSubMenu/VaultButton2
+@onready var vault_header_label: Label = $VaultSubMenu/VaultLabel2
+@onready var vault_stats_label: Label = $VaultSubMenu/VaultLabel
+
+@onready var vault_menu_sequence: Array[TextureButton] = [
+	sub_vault_back_btn,
+	sub_vault_reset_btn
+]
 
 func _ready() -> void:
 	if background_rect:
@@ -90,6 +102,8 @@ func _ready() -> void:
 	menu_buttons_container.visible = true
 	if gamemode_labels_container:
 		gamemode_labels_container.visible = true
+	if vault_sub_menu:
+		vault_sub_menu.visible = false
 	
 	# Check if we were redirected here because of a disconnect or a match win/loss text sync
 	if description_label:
@@ -134,7 +148,7 @@ func _initialize_focus() -> void:
 			_update_background_target(active_sequence[current_index])
 
 func _disable_default_navigation() -> void:
-	var all_buttons = main_menu_sequence + fight_menu_sequence + online_menu_sequence
+	var all_buttons = main_menu_sequence + fight_menu_sequence + online_menu_sequence + vault_menu_sequence
 	for button in all_buttons:
 		if button:
 			button.focus_mode = Control.FOCUS_ALL
@@ -144,12 +158,14 @@ func _disable_default_navigation() -> void:
 			button.focus_neighbor_right = NodePath(".")
 
 func _connect_description_signals() -> void:
-	var all_buttons = main_menu_sequence + fight_menu_sequence + online_menu_sequence
+	var all_buttons = main_menu_sequence + fight_menu_sequence + online_menu_sequence + vault_menu_sequence
 	for button in all_buttons:
-		if button and button.has_signal("hovered_with_description"):
-			button.hovered_with_description.connect(_on_button_description_updated)
+		if button: # Replaces old check to safely catch any focused state
+			if button.has_signal("hovered_with_description"):
+				button.hovered_with_description.connect(_on_button_description_updated)
 			button.focus_entered.connect(_on_button_focused.bind(button))
 			button.mouse_entered.connect(_on_button_focused.bind(button))
+			
 
 func _on_button_focused(button: TextureButton) -> void:
 	if active_sequence.has(button):
@@ -162,6 +178,9 @@ func _update_background_target(active_button: TextureButton) -> void:
 		return
 	if active_sequence == online_menu_sequence:
 		target_bg_color = Color.from_string("#d4beaa", Color.ORANGE)
+		return
+	if active_sequence == vault_menu_sequence:
+		target_bg_color = Color.from_string("#cfa6c4", Color.PINK)
 		return
 		
 	if mode_colors.has(active_button):
@@ -187,6 +206,12 @@ func _connect_click_signals() -> void:
 	online_btn.pressed.connect(_on_main_online_pressed)
 	sub_public_btn.pressed.connect(func(): _go_to_online_lobby(true))
 	sub_private_btn.pressed.connect(func(): _go_to_online_lobby(false))
+	
+
+	vault_btn.pressed.connect(_on_main_vault_pressed)
+	sub_vault_back_btn.pressed.connect(_on_sub_vault_back_pressed)
+	sub_vault_reset_btn.pressed.connect(_on_sub_vault_replays_pressed) 
+
 
 func _on_main_fight_pressed() -> void:
 	menu_buttons_container.visible = false
@@ -232,7 +257,7 @@ func _input(event: InputEvent) -> void:
 				if get_viewport():
 					get_viewport().set_input_as_handled()
 		elif event.keycode == KEY_ESCAPE:
-			if active_sequence == fight_menu_sequence or active_sequence == online_menu_sequence:
+			if active_sequence != main_menu_sequence:
 				back_to_main_menu()
 				get_viewport().set_input_as_handled()
 
@@ -251,6 +276,8 @@ func back_to_main_menu():
 	fight_sub_menu.visible = false
 	if online_sub_menu:
 		online_sub_menu.visible = false
+	if vault_sub_menu: 
+		vault_sub_menu.visible = false
 		
 	menu_buttons_container.visible = true
 	gamemode_labels_container.visible = true
@@ -278,3 +305,22 @@ func _on_alert_timeout() -> void:
 	if description_label:
 		description_label.modulate = Color.WHITE
 		description_label.text = DEFAULT_PROMPT
+		
+func _on_main_vault_pressed() -> void:
+	menu_buttons_container.visible = false
+	if gamemode_labels_container:
+		gamemode_labels_container.visible = false
+		
+	if vault_sub_menu:
+		vault_sub_menu.visible = true
+	active_sequence = vault_menu_sequence
+	_initialize_focus()
+
+func _on_sub_vault_back_pressed() -> void:
+		print("[MENU] Replays button clicked! Scene transition slot ready for next step.")
+
+func _on_sub_vault_replays_pressed() -> void:
+	print("[MENU] Loading dedicated Stats scene...")
+	var error = get_tree().change_scene_to_file("res://scenes/UI/Stats.tscn")
+	if error != OK:
+		print("[ERROR] Could not load StatsMenu.tscn!")
